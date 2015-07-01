@@ -2,6 +2,8 @@
 
 ;+
 ; GUI browser for CoMP data.
+;
+; .. image:: browser.png
 ;-
 
 ;= helper methods
