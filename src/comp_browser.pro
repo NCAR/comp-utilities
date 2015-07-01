@@ -114,8 +114,16 @@ pro comp_browser::display_image, data, header
   endelse
 
   old_win_id = !d.window
+  device, get_decomposed=odec
+  tvlct, rgb, /get
+
+  device, decomposed=0
+  loadct, 3, /silent
   wset, self.draw_id
   tvscl, image, xoffset, yoffset
+
+  tvlct, rgb
+  device, decomposed=odec
   wset, old_win_id
 end
 
