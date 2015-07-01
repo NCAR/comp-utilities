@@ -84,6 +84,7 @@ pro comp_browser::display_image, data, header
   data = congrid(data, dims[0], dims[1])
 
   wave_type = self->get_wave_type(sxpar(header, 'WAVELENG'))
+
   case wave_type of
     '1074' : begin
         display_min = 0.0
@@ -103,7 +104,8 @@ pro comp_browser::display_image, data, header
   endcase
 
   top = 250
-  image = bytscl(data^power, min=display_min, max=display_max, top=top)
+
+  image = bytscl((data > 0.0)^power, min=display_min, max=display_max, top=top)
 
   if (dims[0] gt geo_info.draw_xsize || dims[1] gt geo_info.draw_ysize) then begin
     xoffset = 0
