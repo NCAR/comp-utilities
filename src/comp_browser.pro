@@ -1,5 +1,39 @@
+; docformat = 'rst'
+
+;+
+; GUI browser for CoMP data.
+;-
+
+;= helper methods
+
+;+
+; Determine CoMP wave type from an exact wavelength.
+;
+; :Private:
+;
+; :Returns:
+;   string: '1074', '1079', or '1083'
+;
+; :Params:
+;   wavelength : in, required, type=float
+;     exact wavelength
+;-
+function comp_browser::get_wave_type, wavelength
+  compile_opt strictarr
+
+  ; find nearest wave type to the exact wavelength
+  wave_types = ['1074', '1079', '1083']
+  !null = min(abs(float(wave_types) - wavelength), index)
+  return, wave_types[index]
+end
+
+
+;= CoMP specific overrides from MG_FITS_Browser
+
 ;+
 ; Returns valid file extensions.
+;
+; :Private:
 ;
 ; :Returns:
 ;   strarr
@@ -11,15 +45,17 @@ function comp_browser::file_extensions
 end
 
 
-function comp_browser::get_wave_type, wavelength
-  compile_opt strictarr
-
-  wave_types = ['1074', '1079', '1083']
-  !null = min(abs(float(wave_types) - wavelength), index)
-  return, wave_types[index]
-end
-
-
+;+
+; Display the given data as an image.
+;
+; :Private:
+;
+; :Params:
+;   data : in, required, type=2D array
+;     data to display
+;   header : in, required, type=strarr
+;     FITS header
+;-
 pro comp_browser::display_image, data, header
   compile_opt strictarr
 
@@ -84,6 +120,13 @@ pro comp_browser::display_image, data, header
 end
 
 
+;= lifecycle methods
+
+;+
+; Define CoMP_Browser class, a subclass of MG_FITS_Browser.
+;
+; :Private:
+;-
 pro comp_browser__define
   compile_opt strictarr
 
@@ -91,12 +134,27 @@ pro comp_browser__define
 end
 
 
+;= main routine
+
+;+
+; Create the browser.
+;
+; :Params:
+;   pfilenames : in, optional, type=string
+;     filenames of FITS files to view
+;
+; :Keywords:
+;   filenames : in, optional, type=string
+;     filenames of netCDF files to view
+;   tlb : out, optional, type=long
+;     set to a named variable to retrieve the top-level base widget identifier
+;     of the FITS browser
+;-
 pro comp_browser, pfilenames, filenames=kfilenames, tlb=tlb
   compile_opt strictarr
   
   ; parameter filename takes precedence (it clobbers keyword filename,
-  ; if                    
-  ; both present)
+  ; if both present)
 
   if (n_elements(kfilenames) gt 0L) then _filenames = kfilenames
   if (n_elements(pfilenames) gt 0L) then _filenames = pfilenames
