@@ -33,6 +33,47 @@ end
 ;= CoMP specific overrides from MG_FITS_Browser
 
 ;+
+; Return title to display for extension.
+;
+; :Returns:
+;   string
+;
+; :Params:
+;   ext_number : in, required, type=long
+;     extension number
+;   ext_name : in, required, type=long
+;     extension name
+;   ext_header : in, required, type=strarr
+;     header for extension
+;-
+function comp_browser::extension_title, ext_number, ext_name, ext_header
+  compile_opt strictarr
+
+  datatype   = sxpar(ext_header, 'DATATYPE', count=count)
+  if (count eq 0L) then return, '--'
+
+  polstate   = strtrim(sxpar(ext_header, 'POLSTATE', count=polstate_count), 2)
+  if (polstate_count eq 0L) then begin
+    if (ext_name ne '') then begin
+      tokens = strsplit(ext_name, ',', /extract)
+      polstate = strtrim(tokens[0], 2)
+    endif else begin
+      polstate = '--'
+    endelse
+  endif
+
+  wavelength = sxpar(ext_header, 'WAVELENG')
+  beam       = sxpar(ext_header, 'BEAM', count=beam_count)
+  if (beam_count gt 0L) then begin
+    beam_desc  = beam gt 0 ? '(FG in LR)' : '(FG in UL)'
+  endif else beam_desc = ''
+
+  return, string(datatype, polstate, wavelength, beam_desc, $
+                 format='(%"%s: %s @ %0.2f %s")')
+end
+
+
+;+
 ; Returns valid file extensions.
 ;
 ; :Private:
@@ -175,3 +216,4 @@ pro comp_browser, pfilenames, filenames=kfilenames, tlb=tlb
   b =  mg_fits_browser(pfilenames, filenames=kfilenames, tlb=tlb, $
                        classname='comp_browser')
 end
+
