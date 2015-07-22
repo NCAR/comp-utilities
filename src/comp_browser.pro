@@ -30,6 +30,32 @@ function comp_browser::get_wave_type, wavelength
 end
 
 
+;+
+; Determine whether the data is raw or level 1.
+;
+; :Returns:
+;   0 (raw), 1 (level 1), or -1 (unknown)
+;
+; :Params:
+;   data : in, required, type=fltarr
+;     data read from FITS file
+;   header : in, required, type=strarr
+;     FITS header
+;-
+function comp_browser::get_level, data, header
+  compile_opt strictarr
+
+  ndims = size(data, /n_dimensions)
+  if (ndims ne 2) then return, -1
+
+  dims = size(data, /dimensions)
+  if (array_equal(dims, [1024, 1024])) then return, 0
+  if (array_equal(dims, [620, 620])) then return, 1
+
+  return, -1
+end
+
+
 ;= CoMP specific overrides from MG_FITS_Browser
 
 ;+
@@ -103,8 +129,8 @@ end
 pro comp_browser::display_image, data, header
   compile_opt strictarr
 
-  ndims = size(data, /n_dimensions)
-  if (ndims ne 2) then begin
+  level = self->get_level(data, header)
+  if (level lt 0) then begin
     self->erase
     return
   endif
@@ -127,27 +153,37 @@ pro comp_browser::display_image, data, header
 
   data = congrid(data, dims[0], dims[1])
 
-  wave_type = self->get_wave_type(sxpar(header, 'WAVELENG'))
-
-  case wave_type of
-    '1074' : begin
-        display_min = 0.0
-        display_max = 5.0
-        power = 0.5
-      end
-    '1079' : begin
-        display_min = 0
-        display_max = 3.5
-        power = 0.5
-      end
-    '1083' : begin
-        display_min = 0
-        display_max = 12.0
-        power = 0.3
-      end
-  endcase
-
   top = 250
+  case level of
+    0: begin
+        display_min = 0.0
+        display_max = 5000.0
+        power = 1.0
+        ct = 0
+      end
+    1: begin
+        wave_type = self->get_wave_type(sxpar(header, 'WAVELENG'))
+        ct = 3
+        case wave_type of
+          '1074' : begin
+              display_min = 0.0
+              display_max = 5.0
+              power = 0.5
+            end
+          '1079' : begin
+              display_min = 0
+              display_max = 3.5
+              power = 0.5
+            end
+          '1083' : begin
+              display_min = 0
+              display_max = 12.0
+              power = 0.3
+            end
+        endcase
+      end
+    else: message, 'unknown level'
+  endcase
 
   image = bytscl((data > 0.0)^power, min=display_min, max=display_max, top=top)
 
@@ -164,7 +200,7 @@ pro comp_browser::display_image, data, header
   tvlct, rgb, /get
 
   device, decomposed=0
-  loadct, 3, /silent
+  loadct, ct, /silent
   wset, self.draw_id
   tvscl, image, xoffset, yoffset
 
