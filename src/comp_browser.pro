@@ -92,7 +92,27 @@ end
 function comp_browser::file_bitmap, filename, header
   compile_opt strictarr
 
-  return, 0
+  cover = fix(sxpar(header, 'COVER'))
+  opal = fix(sxpar(header, 'OPAL'))
+  level = strtrim(sxpar(header, 'LEVEL', count=level_found), 2)
+
+  if (cover eq 0) then begin
+    bmp = bytarr(16, 16, 3)
+  endif else begin
+    if (opal eq 1) then begin
+      bmp = bytarr(16, 16, 3) + 128B
+    endif else begin
+      if (level_found && level eq 'L1') then begin
+        bmp = read_png(filepath('level1.png', root=mg_src_root()))
+        bmp = transpose(bmp, [1, 2, 0])
+      endif else begin
+        bmp = read_png(filepath('raw.png', root=mg_src_root()))
+        bmp = transpose(bmp, [1, 2, 0])
+      endelse
+    endelse
+  endelse
+
+  return, bmp
 end
 
 
