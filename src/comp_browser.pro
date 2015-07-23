@@ -65,6 +65,44 @@ end
 ;   string
 ;
 ; :Params:
+;   filename : in, required, type=string
+;     filename of FITS file
+;   header : in, required, type=strarr
+;     primary header of FITS file
+;-
+function comp_browser::file_title, filename, header
+  compile_opt strictarr
+
+  return, file_basename(filename)
+end
+
+
+;+
+; Return bitmap of icon to display next to the file.
+;
+; :Returns:
+;   `bytarr(m, n, 3)` or `bytarr(m, n, 4)` or `0` if default is to be used
+;
+; :Params:
+;   filename : in, required, type=string
+;     filename of FITS file
+;   header : in, required, type=strarr
+;     primary header of FITS file
+;-
+function comp_browser::file_bitmap, filename, header
+  compile_opt strictarr
+
+  return, 0
+end
+
+
+;+
+; Return title to display for extension.
+;
+; :Returns:
+;   string
+;
+; :Params:
 ;   ext_number : in, required, type=long
 ;     extension number
 ;   ext_name : in, required, type=long
@@ -91,11 +129,51 @@ function comp_browser::extension_title, ext_number, ext_name, ext_header
   wavelength = sxpar(ext_header, 'WAVELENG')
   beam       = sxpar(ext_header, 'BEAM', count=beam_count)
   if (beam_count gt 0L) then begin
-    beam_desc  = beam gt 0 ? '(FG in LR)' : '(FG in UL)'
+    beam_desc  = beam gt 0 ? '(Corona in LR)' : '(Corona in UL)'
   endif else beam_desc = ''
 
   return, string(datatype, polstate, wavelength, beam_desc, $
                  format='(%"%s: %s @ %0.2f %s")')
+end
+
+
+;+
+; Return bitmap of icon to display next to the extension.
+;
+; :Returns:
+;   `bytarr(m, n, 3)` or `bytarr(m, n, 4)` or `0` if default is to be used
+;
+; :Params:
+;   ext_number : in, required, type=long
+;     extension number
+;   ext_name : in, required, type=long
+;     extension name
+;   ext_header : in, required, type=strarr
+;     header for extension
+;-
+function comp_browser::extension_bitmap, ext_number, ext_name, ext_header
+  compile_opt strictarr
+
+  datatype = sxpar(ext_header, 'DATATYPE', count=count)
+  if (size(datatype, /type) ne 7) then return, 0
+
+  case datatype of
+    'DATA': begin
+        level = strtrim(sxpar(ext_header, 'LEVEL', count=level_found), 2)
+        if (level_found && level eq 'L1') then begin
+          bmp = read_png(filepath('level1.png', root=mg_src_root()))
+          bmp = transpose(bmp, [1, 2, 0])
+        endif else begin
+          bmp = read_png(filepath('raw.png', root=mg_src_root()))
+          bmp = transpose(bmp, [1, 2, 0])
+        endelse
+      end
+    'DARK': bmp = bytarr(16, 16, 3)
+    'FLAT': bmp = bytarr(16, 16, 3) + 128B
+    else: bmp = 0
+  endcase
+
+  return, bmp
 end
 
 
