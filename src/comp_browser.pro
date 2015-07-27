@@ -94,14 +94,22 @@ function comp_browser::file_bitmap, filename, header
 
   cover = fix(sxpar(header, 'COVER'))
   opal = fix(sxpar(header, 'OPAL'))
+  polarizer = fix(sxpar(header, 'POLARIZR'))
   level = strtrim(sxpar(header, 'LEVEL', count=level_found), 2)
 
-  if (cover eq 0) then begin
+  if (cover eq 0) then begin     ; dark
     bmp = bytarr(16, 16, 3)
   endif else begin
-    if (opal eq 1) then begin
-      bmp = bytarr(16, 16, 3) + 128B
-    endif else begin
+    if (opal eq 1) then begin    ; flat
+      if (polarizer eq 1) then begin
+        bmp = read_png(filepath('geardata24.png', $
+                                subdir=['resource', 'bitmaps']))
+        bmp = transpose(bmp, [1, 2, 0])
+        bmp = congrid(bmp, 16, 16, 4)
+      endif else begin
+        bmp = bytarr(16, 16, 3) + 128B
+      endelse
+    endif else begin             ; data
       if (level_found && level eq 'L1') then begin
         bmp = read_png(filepath('level1.png', root=mg_src_root()))
         bmp = transpose(bmp, [1, 2, 0])
