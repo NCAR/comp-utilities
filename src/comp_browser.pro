@@ -355,7 +355,7 @@ pro comp_browser, pfilenames, filenames=kfilenames, tlb=tlb
   if (n_elements(kfilenames) gt 0L) then _filenames = kfilenames
   if (n_elements(pfilenames) gt 0L) then _filenames = pfilenames
 
-  b =  mg_fits_browser(pfilenames, filenames=kfilenames, tlb=tlb, $
-                       classname='comp_browser')
+  b = mg_fits_browser(pfilenames, filenames=kfilenames, tlb=tlb, $
+                      classname='comp_browser')
 end
 
