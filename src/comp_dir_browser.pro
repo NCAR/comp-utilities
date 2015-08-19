@@ -39,9 +39,9 @@ function comp_dir_browser_row
 
   return, {time: '', $
            exposure: '', $
-           n_dark: 0, $
-           n_flat: 0, $
-           n_data: 0, $
+           n_dark: '', $
+           n_flat: '', $
+           n_data: '', $
            wavelengths: '', $
            pol_states: ''}
 end
@@ -86,19 +86,52 @@ end
 pro comp_dir_browser::load_directory, dir
   compile_opt strictarr
 
-  self.directory = dir
-
-  ; clear tree widget
-  children = widget_info(self.tree, /all_children)
-  for i = 0L, n_elements(children) - 1L do begin
-    if (children[i] gt 0) then widget_control, children[i], /destroy
-  endfor
-
-  ; clear table widget
-  widget_control, self.table, set_value=comp_dir_browser_row()
+  self->set_title, dir
 
   ; add dir as root of tree
-  ; add subdirs of dir as nodes, uname='date_dir'
+  root = widget_tree(self.tree, value=file_basename(dir), /folder, $
+                     uvalue=dir, uname='root')
+
+  ; add subdirs of dir as nodes, uname='datedir'
+  datedirs = file_search(filepath('*', root=dir), /test_directory, $
+                          count=n_datedirs)
+  for d = 0L, n_datedirs - 1L do begin
+    ; TODO: identify datedir as containing L0 or L1 data, set icon to represent
+    datedir = widget_tree(root, value=file_basename(datedirs[d]), $
+                          uvalue=datedirs[d], uname='datedir')
+  endfor
+end
+
+
+pro comp_dir_browser::load_datedir, datedir
+  compile_opt strictarr
+
+  self->set_status, 'Loading ' + datedir + '...'
+
+  files = file_search(filepath('*.fts', root=datedir), count=n_files, /fold_case)
+  if (n_files eq 0L) then begin
+    widget_control, self.table, ysize=0
+  endif else begin
+    files_info = replicate(comp_dir_browser_row(), n_files)
+
+    for f = 0L, n_files - 1L do begin
+      basename = file_basename(files[f])
+      file_tokens = strsplit(basename, '.', /extract, count=n_files_tokens)
+      time = file_tokens[1]
+      time = strmid(time, 0, 2) $
+               + ':' + strmid(time, 2, 2) $
+               + ':' + strmid(time, 4, 2)
+      files_info[f].time = time
+
+      ; TODO: set files info for no. darks, flats, and data,
+      ; wavelengths, polarization states, exposure, etc.
+
+    endfor
+
+    widget_control, self.table, set_value=files_info, ysize=n_files
+  endelse
+
+  self->set_status, 'Ready'
 end
 
 
@@ -122,8 +155,9 @@ pro comp_dir_browser::handle_events, event
           ; TODO: add event.sel_top...event.sel_bottom to comp_browser
         endif
       end
-    'date_dir': begin
-        ; TODO: load table
+    'datedir': begin
+        widget_control, event.id, get_uvalue=datedir
+        self->load_datedir, datedir
       end
     else:
   endcase
@@ -185,7 +219,7 @@ pro comp_dir_browser::create_widgets
                             uname='table', $
                             /resizeable_columns, $
                             /all_events)
-
+  widget_control, self.table, ysize=0
   ; status bar
   self.statusbar = widget_label(self.tlb, $
                                 scr_xsize=tree_xsize + table_xsize + xpad, $
@@ -239,7 +273,6 @@ pro comp_dir_browser__define
   compile_opt strictarr
 
   define = { comp_dir_browser, $
-             directory: '', $
              date_dir: '', $
              tlb: 0L, $
              tree: 0L, $
@@ -253,14 +286,21 @@ end
 
 pro comp_dir_browser, pdirectory, directory=kdirectory
   compile_opt strictarr
+  common comp_dir_browser, browser
 
   _dir = n_elements(pdirectory) gt 0L ? pdirectory : kdirectory
-  b = obj_new('comp_dir_browser', directory=_dir)
+
+  if (obj_valid(browser)) then begin
+    browser->load_directory, _dir
+  endif else begin
+    browser = obj_new('comp_dir_browser', directory=_dir)
+  endelse
 end
 
 
 ; main-level example program
 
 comp_dir_browser, '/hao/mlsodata1/Data/CoMP/raw'
+comp_dir_browser, '/hao/kaula1/Data/CoMP/process'
 
 end
