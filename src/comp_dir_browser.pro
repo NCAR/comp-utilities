@@ -209,10 +209,35 @@ pro comp_dir_browser::handle_events, event
 
   uname = widget_info(event.id, /uname)
   case uname of
+    'tlb': begin
+        tlb_geometry = widget_info(self.tlb, /geometry)
+        content_base_geometry = widget_info(widget_info(self.tlb, /child), /geometry)
+        tree_geometry = widget_info(self.tree, /geometry)
+        table_geometry = widget_info(self.table, /geometry)
+        statusbar_geometry = widget_info(self.statusbar, /geometry)
+
+        table_width = event.x - tree_geometry.scr_xsize $
+                        - 2 * tlb_geometry.xpad $
+                        - content_base_geometry.xpad $
+                        - 3
+        statusbar_width = table_width + tree_geometry.scr_xsize $
+                            + content_base_geometry.xpad
+        height = event.y - 3 * tlb_geometry.ypad $
+                   - 2 * content_base_geometry.ypad $
+                   - statusbar_geometry.scr_ysize $
+                   - 2 * statusbar_geometry.margin
+
+        widget_control, self.tlb, update=0
+        widget_control, self.tree, scr_ysize=height
+        widget_control, self.table, scr_xsize=table_width, scr_ysize=height
+        widget_control, self.statusbar, scr_xsize=statusbar_width
+        widget_control, self.tlb, update=1
+      end
     'table': begin
         case tag_names(event, /structure_name) of
           'WIDGET_TABLE_CELL_SEL': begin
-              if (event.sel_left lt 0) then return
+              table_geometry = widget_info(self.table, /geometry)
+              if (event.sel_top lt 0 || event.sel_bottom ge table_geometry.ysize) then return
               widget_control, self.table, $
                               set_table_select=[0, event.sel_top, $
                                                 6, event.sel_bottom]
@@ -221,6 +246,7 @@ pro comp_dir_browser::handle_events, event
           'WIDGET_CONTEXT': begin
               widget_displaycontextmenu, event.id, event.x, event.y, self.context_base
             end
+          else: help, event
         endcase
       end
     'display_files': begin
@@ -268,21 +294,20 @@ end
 pro comp_dir_browser::create_widgets
   compile_opt strictarr
 
-  self.tlb = widget_base(title=self.title, /column, uvalue=self, uname='tlb')
+  self.tlb = widget_base(title=self.title, /column, /tlb_size_events, $
+                         uvalue=self, uname='tlb')
   
   ; content row
-  content_base = widget_base(self.tlb, /row)
+  content_base = widget_base(self.tlb, /row, xpad=0)
 
   tree_xsize = 250
   table_xsize = 700
   scr_ysize = 600
-  xpad = 4
+  xpad = 0
 
-  ; tree
   self.tree = widget_tree(content_base, uname='browser', $
                           scr_xsize=tree_xsize, scr_ysize=scr_ysize)
 
-  ; table
   self.table = widget_table(content_base, $
                             /no_row_headers, $
                             column_labels=['Time', $
@@ -302,10 +327,9 @@ pro comp_dir_browser::create_widgets
                             /context_events)
 
   self.context_base = widget_base(self.table, /context_menu)
-  button1 = widget_button(self.context_base, value='Display files', $
-                          uname='display_files')
+  display_button = widget_button(self.context_base, value='Display files', $
+                                 uname='display_files')
 
-  ; status bar
   self.statusbar = widget_label(self.tlb, $
                                 scr_xsize=tree_xsize + table_xsize + xpad, $
                                 /align_left, /sunken_frame)
