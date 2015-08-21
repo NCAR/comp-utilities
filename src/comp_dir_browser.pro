@@ -57,6 +57,38 @@ function comp_dir_browser_row
 end
 
 
+;+
+; Determine if a directory contains raw data (level 0), processed
+; (level 1 or 2) data, or no data.
+;
+; :Returns:
+;   -1, 0, 1, or 2
+;
+; :Params:
+;   datedir : in, required, type=string
+;     directory to check
+;
+; :Keywords:
+;   files : out, optional, type=strarr
+;     FITS files in directory
+;   n_files : out, optional, type=long
+;     number of FITS files in directory
+;-
+function comp_dir_browser_findlevel, datedir, files=files, n_files=n_files
+  compile_opt strictarr
+
+  files = file_search(filepath('*.fts', root=datedir), /fold_case, count=n_files)
+  if (n_files eq 0) then return, -1
+
+  raw_re = '[[:digit:]]{8}\.[[:digit:]]{6}\.FTS'
+  n_raw_files = total(stregex(files, raw_re, /boolean), /integer)
+
+  if (n_raw_files eq n_files) then return, 0
+
+  return, 1
+end
+
+
 ;= API
 
 ;+
@@ -116,17 +148,29 @@ pro comp_dir_browser::load_directory, dir
   root = widget_tree(self.tree, value=file_basename(dir), /folder, $
                      uvalue=dir, uname='root')
 
+  raw_bmp = read_png(filepath('raw.png', root=mg_src_root()))
+  raw_bmp = transpose(raw_bmp, [1, 2, 0])
+
+  level1_bmp = read_png(filepath('level1.png', root=mg_src_root()))
+  level1_bmp = transpose(level1_bmp, [1, 2, 0])
+
   ; add subdirs of dir as nodes, uname='datedir'
   datedirs = file_search(filepath('*', root=dir), /test_directory, $
                           count=n_datedirs)
   for d = 0L, n_datedirs - 1L do begin
     ; TODO: identify datedir as containing L0 or L1 data, set icon to
     ; represent
-    files = file_search(filepath('*.fts', root=datedirs[d]), $
-                        count=n_files, /fold_case)
+    level = comp_dir_browser_findlevel(datedirs[d], files=files, n_files=n_files)
+    case level of
+      -1: bitmap = bytarr(16, 16, 3)
+       0: bitmap = raw_bmp
+       1: bitmap = level1_bmp
+       2: bitmap = level1_bmp
+    endcase
     datedir = widget_tree(root, $
                           value=file_basename(datedirs[d]) $
                             + ' - ' + strtrim(n_files, 2) + ' files', $
+                          bitmap=bitmap, $
                           uvalue=datedirs[d], uname='datedir')
   endfor
 
@@ -173,7 +217,8 @@ pro comp_dir_browser::load_datedir, datedir
       files_info[f].time = time
 
       fits_open, files[f], fcb
-      comp_inventory, fcb, beam, group, wave, pol, type, expose, cover, cal_pol, cal_ret
+      comp_inventory, fcb, beam, group, wave, pol, type, expose, cover, $
+                      cal_pol, cal_ret
 
       n = n_elements(pol)
       case type of
