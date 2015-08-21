@@ -238,9 +238,11 @@ pro comp_dir_browser::handle_events, event
           'WIDGET_TABLE_CELL_SEL': begin
               table_geometry = widget_info(self.table, /geometry)
               if (event.sel_top lt 0 || event.sel_bottom ge table_geometry.ysize) then return
+              current_view = widget_info(self.table, /table_view)
               widget_control, self.table, $
                               set_table_select=[0, event.sel_top, $
                                                 6, event.sel_bottom]
+              widget_control, self.table, set_table_view=current_view
               self.selection = [event.sel_top, event.sel_bottom]
             end
           'WIDGET_CONTEXT': begin
