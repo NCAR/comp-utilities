@@ -485,9 +485,11 @@ end
 ;-
 pro comp_dir_browser, pdirectory, directory=kdirectory
   compile_opt strictarr
+  on_error, 2
   common comp_dir_browser, browser
 
-  _dir = n_elements(pdirectory) gt 0L ? pdirectory : kdirectory
+  _dir = n_elements(pdirectory) gt 0L ? pdirectory : (n_elements(kdirectory) gt 0L ? kdirectory : '')
+  if (_dir eq '') then message, 'directory not specified'
 
   if (obj_valid(browser)) then begin
     browser->load_directory, _dir
