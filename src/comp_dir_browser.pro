@@ -179,6 +179,25 @@ end
 
 
 ;+
+; Compute total number of dark, flat, and data images.
+;
+; :Returns:
+;   `lonarr(3)`
+;-
+function comp_dir_browser::compute_totals
+  compile_opt strictarr
+
+  widget_control, self.table, get_value=table_value
+
+  n_dark = total(long(table_value.n_dark), /preserve_type)
+  n_flat = total(long(table_value.n_flat), /preserve_type)
+  n_data = total(long(table_value.n_data), /preserve_type)
+
+  return, [n_dark, n_flat, n_data]
+end
+
+
+;+
 ; Load a date directory.
 ;
 ; :Params:
@@ -236,7 +255,12 @@ pro comp_dir_browser::load_datedir, datedir
     widget_control, self.table, set_value=files_info, ysize=n_files
   endelse
 
-  self->set_status, 'Ready'
+  total_images = self->compute_totals()
+  format = '(%"Images loaded: %d dark images, %d flat images, %d data images")'
+  self->set_status, string(total_images[0], $
+                           total_images[1], $
+                           total_images[2], $
+                           format=format)
 end
 
 
@@ -302,6 +326,14 @@ pro comp_dir_browser::handle_events, event
           self.file_browser = mg_fits_browser(classname='comp_browser')
         endif
         self.file_browser->load_files, (*(self.files))[self.selection[0]:self.selection[1]]
+      end
+    'compute_totals': begin
+        total_images = self->compute_totals()
+        format = '(%"%d dark images, %d flat images, %d data images")'
+        self->set_status, string(total_images[0], $
+                                 total_images[1], $
+                                 total_images[2], $
+                                 format=format)
       end
     'datedir': begin
         widget_control, event.id, get_uvalue=datedir
@@ -376,6 +408,8 @@ pro comp_dir_browser::create_widgets
   self.context_base = widget_base(self.table, /context_menu)
   display_button = widget_button(self.context_base, value='Display files', $
                                  uname='display_files')
+  compute_button = widget_button(self.context_base, value='Compute totals', $
+                                 uname='compute_totals')
 
   self.statusbar = widget_label(self.tlb, $
                                 scr_xsize=tree_xsize + table_xsize + xpad, $
