@@ -11,8 +11,8 @@
 ; Thin procedural wrapper to call `::handle_events` event handler.
 ;
 ; :Params:
-;   event : in, required, type=structure                                                    
-;     event structure for event handler to handle                                          
+;   event : in, required, type=structure
+;     event structure for event handler to handle
 ;-
 pro comp_dir_browser_handleevents, event
   compile_opt strictarr
@@ -23,8 +23,7 @@ end
 
 
 ;+
-; Thin procedural wrapper to call `::cleanup_widgets` cleanup
-; routine.
+; Thin procedural wrapper to call `::cleanup_widgets` cleanup routine.
 ;
 ; :Params:
 ;   tlb : in, required, type=long
