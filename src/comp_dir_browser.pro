@@ -135,17 +135,19 @@ end
 pro comp_dir_browser::load_directory, dir
   compile_opt strictarr
 
+  dirname = file_basename(file_expand_path(dir))
+
   child = widget_info(self.tree, /child)
   if (child eq 0L) then begin
-    self->set_title, dir
+    self->set_title, dirname
   endif else begin
     self->set_title, 'several directories'
   endelse
 
-  self->set_status, 'Loading ' + dir + '...'
+  self->set_status, 'Loading ' + dirname + '...'
 
   ; add dir as root of tree
-  root = widget_tree(self.tree, value=file_basename(dir), /folder, $
+  root = widget_tree(self.tree, value=dirname, /folder, $
                      uvalue=dir, uname='root')
 
   raw_bmp = read_png(filepath('raw.png', root=mg_src_root()))
@@ -157,6 +159,7 @@ pro comp_dir_browser::load_directory, dir
   ; add subdirs of dir as nodes, uname='datedir'
   datedirs = file_search(filepath('*', root=dir), /test_directory, $
                           count=n_datedirs)
+  widget_control, self.tree, update=0
   for d = 0L, n_datedirs - 1L do begin
     ; TODO: identify datedir as containing L0 or L1 data, set icon to
     ; represent
@@ -173,6 +176,7 @@ pro comp_dir_browser::load_directory, dir
                           bitmap=bitmap, $
                           uvalue=datedirs[d], uname='datedir')
   endfor
+  widget_control, self.tree, update=1
 
   self->set_status, 'Ready'
 end
@@ -214,9 +218,9 @@ pro comp_dir_browser::load_datedir, datedir
   compile_opt strictarr
 
   if (self.inventories->hasKey(datedir)) then begin
-    files_info = self.inventories[datedir]
+    files_info = (self.inventories)[datedir]
 
-    *(self.files) = self.files_cache[datedir]
+    *(self.files) = (self.files_cache)[datedir]
     n_files = n_elements(*(self.files))
   endif else begin
     self->set_status, 'Loading ' + datedir + '...'
@@ -224,7 +228,7 @@ pro comp_dir_browser::load_datedir, datedir
     files = file_search(filepath('*.fts', root=datedir), count=n_files, /fold_case)
     *(self.files) = files
 
-    self.files_cache[datedir] = n_files eq 0L ? [] : files
+    (self.files_cache)[datedir] = n_files eq 0L ? [] : files
 
     if (n_files eq 0L) then begin
       widget_control, self.table, ysize=0
@@ -267,7 +271,7 @@ pro comp_dir_browser::load_datedir, datedir
       endfor
     endelse
 
-    self.inventories[datedir] = files_info
+    (self.inventories)[datedir] = files_info
   endelse
 
   widget_control, self.table, set_value=files_info, ysize=n_files
