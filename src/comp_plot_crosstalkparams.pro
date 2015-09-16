@@ -1,10 +1,11 @@
 ; docformat = 'rst'
 
-pro comp_plot_crosstalkparams, filename
+pro comp_plot_crosstalkparams, filename, common_scale=common_scale, _extra=e
   compile_opt strictarr
 
   ; maximum gap (in minutes) before not connecting points
   max_gap = 30.0
+  _common_scale = n_elements(common_scale) eq 0L ? 1B : common_scale
 
   n_lines = file_lines(filename)
 
@@ -55,16 +56,19 @@ pro comp_plot_crosstalkparams, filename
   endif
 
   max_coeffs = max(coeffs, min=min_coeffs, dimension=2)
-  common_axes = 0B
 
-  !p.multi = [12, 3, 4, 0, 1]
+  !p.multi = [12, 3, 4, 0, 0]
   date_label = label_date(date_format=['%H:%I']) 
+  titles = ['I', 'Q', 'U'] + 'V'
+  ytitles = ['constant', 'x', 'y', 'xy']
   for c = 0L, 11L do begin
-    ind = keyword_set(common_axes) ? 4L * lindgen(3) + c mod 4 : c
+    ind = keyword_set(common_scale) ? (lindgen(3) + 4 * (c / 3)) : c
     plot, times, coeffs[c, *], $
-          charsize=2.0, $
+          title=c lt 3 ? titles[c] : '', $
           ystyle=8, yrange=[min(min_coeffs[ind]), max(max_coeffs[ind])], $
-          xstyle=9, xtickformat='label_date', xtickunits='Time'
+          ytitle=c mod 3 eq 0 ? ytitles[c / 3] : '', $
+          xstyle=9, xtickformat='label_date', xtickunits='Time', $
+          _extra=e
   endfor
   !p.multi = 0
 end
@@ -72,8 +76,26 @@ end
 
 ; main-level example program
 
-window, xsize=1500, ysize=750, /free, title='Crosstalk params'
+to_ps = 1B
+
+if (keyword_set(to_ps)) then begin
+  basename = 'crosstalk'
+  mg_psbegin, /image, filename=basename + '.ps', xsize=7.5, ysize=5, /inches
+  charsize = 0.75
+endif else begin
+  window, xsize=1500, ysize=750, /free, title='Crosstalk params'
+  charsize = 2.0
+endelse
+
 f = '/hao/compdata1/Data/CoMP/logs.joe2/engineering/2015/20150624.comp.crosstalk.txt'
-comp_plot_crosstalkparams, f
+comp_plot_crosstalkparams, f, charsize=charsize
+
+
+if (keyword_set(to_ps)) then begin
+  mg_psend
+  mg_convert, basename, max_dimensions=[1000, 1000], output=im, $
+              /to_png
+  mg_image, im, /new_window
+endif
 
 end
