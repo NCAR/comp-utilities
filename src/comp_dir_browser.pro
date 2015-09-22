@@ -11,8 +11,8 @@
 ; Thin procedural wrapper to call `::handle_events` event handler.
 ;
 ; :Params:
-;   event : in, required, type=structure                                                    
-;     event structure for event handler to handle                                          
+;   event : in, required, type=structure
+;     event structure for event handler to handle
 ;-
 pro comp_dir_browser_handleevents, event
   compile_opt strictarr
@@ -23,8 +23,7 @@ end
 
 
 ;+
-; Thin procedural wrapper to call `::cleanup_widgets` cleanup
-; routine.
+; Thin procedural wrapper to call `::cleanup_widgets` cleanup routine.
 ;
 ; :Params:
 ;   tlb : in, required, type=long
@@ -135,17 +134,19 @@ end
 pro comp_dir_browser::load_directory, dir
   compile_opt strictarr
 
+  dirname = file_basename(file_expand_path(dir))
+
   child = widget_info(self.tree, /child)
   if (child eq 0L) then begin
-    self->set_title, dir
+    self->set_title, dirname
   endif else begin
     self->set_title, 'several directories'
   endelse
 
-  self->set_status, 'Loading ' + dir + '...'
+  self->set_status, 'Loading ' + dirname + '...'
 
   ; add dir as root of tree
-  root = widget_tree(self.tree, value=file_basename(dir), /folder, $
+  root = widget_tree(self.tree, value=dirname, /folder, $
                      uvalue=dir, uname='root')
 
   raw_bmp = read_png(filepath('raw.png', root=mg_src_root()))
@@ -157,6 +158,7 @@ pro comp_dir_browser::load_directory, dir
   ; add subdirs of dir as nodes, uname='datedir'
   datedirs = file_search(filepath('*', root=dir), /test_directory, $
                           count=n_datedirs)
+  widget_control, self.tree, update=0
   for d = 0L, n_datedirs - 1L do begin
     ; TODO: identify datedir as containing L0 or L1 data, set icon to
     ; represent
@@ -173,6 +175,7 @@ pro comp_dir_browser::load_directory, dir
                           bitmap=bitmap, $
                           uvalue=datedirs[d], uname='datedir')
   endfor
+  widget_control, self.tree, update=1
 
   self->set_status, 'Ready'
 end
@@ -183,15 +186,20 @@ end
 ;
 ; :Returns:
 ;   `lonarr(3)`
+;
+; :Params:
+;   files_info : in, required, type=array of structures
+;     array of structures of the same type as the return value of
+;     `COMP_DIR_BROWSER_ROW`
 ;-
-function comp_dir_browser::compute_totals
+function comp_dir_browser::compute_totals, files_info
   compile_opt strictarr
 
-  widget_control, self.table, get_value=table_value
+  if (n_elements(files_info) eq 0L) then return, lonarr(3)
 
-  n_dark = total(long(table_value.n_dark), /preserve_type)
-  n_flat = total(long(table_value.n_flat), /preserve_type)
-  n_data = total(long(table_value.n_data), /preserve_type)
+  n_dark = total(long(files_info.n_dark), /preserve_type)
+  n_flat = total(long(files_info.n_flat), /preserve_type)
+  n_data = total(long(files_info.n_data), /preserve_type)
 
   return, [n_dark, n_flat, n_data]
 end
@@ -208,54 +216,66 @@ end
 pro comp_dir_browser::load_datedir, datedir
   compile_opt strictarr
 
-  self->set_status, 'Loading ' + datedir + '...'
+  if (self.inventories->hasKey(datedir)) then begin
+    files_info = (self.inventories)[datedir]
 
-  files = file_search(filepath('*.fts', root=datedir), count=n_files, /fold_case)
-  *(self.files) = files
-
-  if (n_files eq 0L) then begin
-    widget_control, self.table, ysize=0
+    *(self.files) = (self.files_cache)[datedir]
+    n_files = n_elements(*(self.files))
   endif else begin
-    files_info = replicate(comp_dir_browser_row(), n_files)
+    self->set_status, 'Loading ' + datedir + '...'
 
-    ; TODO: handle L0 vs L1 differently
+    files = file_search(filepath('*.fts', root=datedir), count=n_files, /fold_case)
+    *(self.files) = files
 
-    for f = 0L, n_files - 1L do begin
-      if ((f + 1) mod 10 eq 0) then begin
+    (self.files_cache)[datedir] = n_files eq 0L ? [] : files
+
+    if (n_files eq 0L) then begin
+      widget_control, self.table, ysize=0
+      file_info = {}
+    endif else begin
+      files_info = replicate(comp_dir_browser_row(), n_files)
+
+      ; TODO: handle L0 vs L1 differently
+
+      for f = 0L, n_files - 1L do begin
+        if ((f + 1) mod 10 eq 0) then begin
           self->set_status, string(datedir, f + 1, n_files, $
                                    format='(%"Loading %s: %d/%d...")')
-      endif
+        endif
 
-      ; set time fields
-      basename = file_basename(files[f])
-      file_tokens = strsplit(basename, '.', /extract, count=n_files_tokens)
-      time = file_tokens[1]
-      time = strmid(time, 0, 2) $
+        ; set time fields
+        basename = file_basename(files[f])
+        file_tokens = strsplit(basename, '.', /extract, count=n_files_tokens)
+        time = file_tokens[1]
+        time = strmid(time, 0, 2) $
                + ':' + strmid(time, 2, 2) $
                + ':' + strmid(time, 4, 2)
-      files_info[f].time = time
+        files_info[f].time = time
 
-      fits_open, files[f], fcb
-      comp_inventory, fcb, beam, group, wave, pol, type, expose, cover, $
-                      cal_pol, cal_ret
+        fits_open, files[f], fcb
+        comp_inventory, fcb, beam, group, wave, pol, type, expose, cover, $
+                        cal_pol, cal_ret
 
-      n = n_elements(pol)
-      case type of
-        'OPAL': files_info[f].n_flat = strtrim(n, 2)
-        'DATA': files_info[f].n_data = strtrim(n, 2)
-        'DARK': files_info[f].n_dark = strtrim(n, 2)
-      endcase
-      files_info[f].exposure = string(expose, format='(%"%0.1f ms")')
-      files_info[f].pol_states = strjoin(strtrim(pol[uniq(pol, sort(pol))], 2), ', ')
-      files_info[f].wavelengths = strjoin(strtrim(wave[uniq(wave, sort(wave))], 2), ', ')
+        n = n_elements(pol)
+        case type of
+          'OPAL': files_info[f].n_flat = strtrim(n, 2)
+          'DATA': files_info[f].n_data = strtrim(n, 2)
+          'DARK': files_info[f].n_dark = strtrim(n, 2)
+        endcase
+        files_info[f].exposure = string(expose, format='(%"%0.1f ms")')
+        files_info[f].pol_states = strjoin(strtrim(pol[uniq(pol, sort(pol))], 2), ', ')
+        files_info[f].wavelengths = strjoin(strtrim(wave[uniq(wave, sort(wave))], 2), ', ')
 
-      fits_close, fcb
-    endfor
+        fits_close, fcb
+      endfor
+    endelse
 
-    widget_control, self.table, set_value=files_info, ysize=n_files
+    (self.inventories)[datedir] = files_info
   endelse
 
-  total_images = self->compute_totals()
+  widget_control, self.table, set_value=files_info, ysize=n_files
+
+  total_images = self->compute_totals(files_info)
   format = '(%"Images loaded: %d dark images, %d flat images, %d data images")'
   self->set_status, string(total_images[0], $
                            total_images[1], $
@@ -328,7 +348,8 @@ pro comp_dir_browser::handle_events, event
         self.file_browser->load_files, (*(self.files))[self.selection[0]:self.selection[1]]
       end
     'compute_totals': begin
-        total_images = self->compute_totals()
+        widget_control, self.table, get_uvalue=file_info
+        total_images = self->compute_totals(file_info)
         format = '(%"%d dark images, %d flat images, %d data images")'
         self->set_status, string(total_images[0], $
                                  total_images[1], $
@@ -449,7 +470,7 @@ pro comp_dir_browser::cleanup
   compile_opt strictarr
 
   ptr_free, self.files
-  obj_destroy, self.file_browser
+  obj_destroy, [self.file_browser, self.inventories, self.files_cache]
 end
 
 
@@ -473,6 +494,9 @@ function comp_dir_browser::init, directory=directory, tlb=tlb
   self->create_widgets
   self->realize_widgets
   self->start_xmanager
+
+  self.inventories = hash()
+  self.files_cache = hash()
 
   self->set_status, 'Ready'
 
@@ -501,7 +525,9 @@ pro comp_dir_browser__define
              title: '', $
              selection: lonarr(2), $
              files: ptr_new(), $
-             file_browser: obj_new() $
+             file_browser: obj_new(), $
+             inventories: obj_new(), $
+             files_cache: obj_new() $
            }
 end
 
