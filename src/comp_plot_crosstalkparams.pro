@@ -1,94 +1,123 @@
 ; docformat = 'rst'
 
-pro comp_plot_crosstalkparams, filename, common_scale=common_scale, _extra=e
+pro comp_plot_crosstalkparams, path, date, charsize=charsize, _extra=e
   compile_opt strictarr
 
   ; maximum gap (in minutes) before not connecting points
-  max_gap = 30.0
-  _common_scale = n_elements(common_scale) eq 0L ? 1B : common_scale
+  min_gap = 30.0
 
-  n_lines = file_lines(filename)
+  search_names = string(date, format='(%"%s.comp.*.crosstalk.txt")')
+  search_path = filepath(search_names, root=path)
+  files = file_search(search_path, count=n_files)
 
-  times = dblarr(n_lines)
-  coeffs = dblarr(12, n_lines)
+  if (n_files eq 0L) then return
+
+  n_lines = lonarr(n_files)
+  wavelengths = strarr(n_files)
+
+  for f = 0L, n_files - 1L do begin
+    n_lines[f] = file_lines(files[f])
+    wavelengths[f] = strmid(file_basename(files[f]), 14, 4)
+  endfor
+
+  total_n_lines = total(n_lines, /integer)
+
+  times = dblarr(total_n_lines)
+  coeffs = dblarr(12, total_n_lines)
 
   line = ''
-  openr, lun, filename, /get_lun
-  for i = 0L, n_lines - 1L do begin
-    readf, lun, line
-    tokens = strsplit(line, ',', /extract)
-    t = strsplit(tokens[0], '.', /extract)
+  offset = 0L
+  for f = 0L, n_files - 1L do begin
+    openr, lun, files[f], /get_lun
 
-    year   = long(strmid(t[0], 0, 4))
-    month  = long(strmid(t[0], 4, 2))
-    day    = long(strmid(t[0], 6, 2))
+    for i = 0L, n_lines[f] - 1L do begin
+      readf, lun, line
+      tokens = strsplit(line, ',', /extract)
+      t = strsplit(tokens[0], '.', /extract)
 
-    hour   = long(strmid(t[1], 0, 2))
-    minute = long(strmid(t[1], 2, 2))
-    second = long(strmid(t[1], 4, 2))
+      year   = long(strmid(t[0], 0, 4))
+      month  = long(strmid(t[0], 4, 2))
+      day    = long(strmid(t[0], 6, 2))
 
-    times[i] = julday(month, day, year, hour, minute, second)
+      hour   = long(strmid(t[1], 0, 2))
+      minute = long(strmid(t[1], 2, 2))
+      second = long(strmid(t[1], 4, 2))
 
-    coeffs[*, i] = double(tokens[1:12])
-  endfor
-  free_lun, lun
+      times[i + offset] = julday(month, day, year, hour, minute, second)
 
-  ind = sort(times)
-  times = times[ind]
-  coeffs = coeffs[*, ind]
-
-  diffs = times[1:*] - times[0:-1]
-  ind = where(diffs gt max_gap / (24.0 * 60.0), count)
-  if (count gt 0L) then begin
-    new_times = dblarr(n_lines + count)
-    new_coeffs = dblarr(12, n_lines + count)
-    ind = [-1, ind, n_lines - 1L]
-    for c = 1L, count + 1L do begin
-      new_times[ind[c - 1L] + c:ind[c] + c - 1L] = times[ind[c - 1L] + 1:ind[c]]
-      if (c ne count + 1L) then new_times[ind[c] + c] = !values.d_nan
-
-      new_coeffs[*, ind[c - 1L] + c:ind[c] + c - 1L] = coeffs[*, ind[c - 1L] + 1:ind[c]]
-      if (c ne count + 1L) then new_coeffs[*, ind[c] + c] = !values.d_nan
+      coeffs[*, i + offset] = double(tokens[1:12])
     endfor
 
-    times = new_times
-    coeffs = new_coeffs
-  endif
+    free_lun, lun
+
+    offset += n_lines[f]
+  endfor
 
   max_coeffs = max(coeffs, min=min_coeffs, dimension=2)
+
+  time_range = [min(times, max=max_time), max_time]
+
+  device, get_decomposed=odec
+  device, decomposed=1
 
   !p.multi = [12, 3, 4, 0, 0]
   date_label = label_date(date_format=['%H:%I']) 
   titles = ['I', 'Q', 'U'] + 'V'
   ytitles = ['constant', 'x', 'y', 'xy']
+
+  colors = mg_n_categories(n_files, brewer_ct=31)
+
   for c = 0L, 11L do begin
-    ind = keyword_set(common_scale) ? (lindgen(3) + 4 * (c / 3)) : c
-    plot, times, coeffs[c, *], $
-          title=c lt 3 ? titles[c] : '', $
-          ystyle=8, yrange=[min(min_coeffs[ind]), max(max_coeffs[ind])], $
-          ytitle=c mod 3 eq 0 ? ytitles[c / 3] : '', $
-          xstyle=9, xtickformat='label_date', xtickunits='Time', $
-          _extra=e
+    end_line = -1L
+    for f = 0L, n_files - 1L do begin
+      begin_line = end_line + 1L
+      end_line = begin_line + n_lines[f] - 1L
+
+      mg_add_gaps, times[begin_line:end_line], coeffs[c, begin_line:end_line], $
+                   min_gap_length=min_gap / (24.0 * 60.0), $
+                   gap_value=!values.d_nan, $
+                   x_out=t, y_out=y
+
+      if (f eq 0) then begin
+        plot, t, y, /nodata, $
+              title=c lt 3 ? titles[c] : '', $
+              ystyle=8, yrange=[min(min_coeffs[c]), max(max_coeffs[c])], $
+              ytitle=c mod 3 eq 0 ? ytitles[c / 3] : '', $
+              xrange=time_range, xstyle=9, $
+              xtickformat='label_date', xtickunits='Time', $
+              charsize=charsize, $
+              _extra=e
+        oplot, t, y, color=colors[f], _extra=e
+      endif else begin
+        oplot, t, y, color=colors[f], _extra=e
+      endelse
+
+      ; give legend
+      xyouts, t[-1], y[-1], wavelengths[f], color=colors[f], charsize=charsize * 0.5
+    endfor
   endfor
   !p.multi = 0
+  device, decomposed=odec
 end
 
 
 ; main-level example program
 
-to_ps = 1B
+to_ps = 0B
 
 if (keyword_set(to_ps)) then begin
   basename = 'crosstalk'
-  mg_psbegin, /image, filename=basename + '.ps', xsize=7.5, ysize=5, /inches
+  mg_psbegin, /image, filename=basename + '.ps', $
+              xsize=10, ysize=7.5, /inches
   charsize = 0.75
 endif else begin
   window, xsize=1500, ysize=750, /free, title='Crosstalk params'
   charsize = 2.0
 endelse
 
-f = '/hao/compdata1/Data/CoMP/logs.joe2/engineering/2015/20150624.comp.crosstalk.txt'
-comp_plot_crosstalkparams, f, charsize=charsize
+p = '/hao/compdata1/Data/CoMP/logs.joe3/engineering/2015/'
+d = '20150624'
+comp_plot_crosstalkparams, p, d, charsize=charsize
 
 
 if (keyword_set(to_ps)) then begin
