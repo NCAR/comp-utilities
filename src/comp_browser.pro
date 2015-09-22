@@ -328,7 +328,9 @@ end
 pro comp_browser::annotate_image, data, header
   compile_opt strictarr
 
-  if (n_elements(data) eq 0L || size(data, /n_dimensions) ne 2L || n_elements(header) eq 0L) then return
+  if (n_elements(data) eq 0L $
+        || size(data, /n_dimensions) ne 2L $
+        || n_elements(header) eq 0L) then return
 
   draw_wid = widget_info(self.tlb, find_by_uname='draw')
   geo_info = widget_info(draw_wid, /geometry)
