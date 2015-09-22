@@ -257,7 +257,7 @@ pro comp_browser::display_image, data, header
     dims *= geo_info.draw_xsize / float(dims[0])
   endelse
 
-  data = congrid(data, dims[0], dims[1])
+  _data = congrid(data, dims[0], dims[1])
 
   top = 250
   case level of
@@ -291,7 +291,7 @@ pro comp_browser::display_image, data, header
     else: message, 'unknown level'
   endcase
 
-  image = bytscl((data > 0.0)^power, min=display_min, max=display_max, top=top)
+  image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
 
   if (dims[0] gt geo_info.draw_xsize || dims[1] gt geo_info.draw_ysize) then begin
     xoffset = 0
@@ -313,6 +313,58 @@ pro comp_browser::display_image, data, header
   tvlct, rgb
   device, decomposed=odec
   wset, old_win_id
+end
+
+
+;+
+; Overlay information on the image.
+;
+; :Params:
+;   data : in, required, type=2D array
+;     data to display
+;   header : in, required, type=strarr
+;     FITS header
+;-
+pro comp_browser::annotate_image, data, header
+  compile_opt strictarr
+
+  if (n_elements(data) eq 0L || size(data, /n_dimensions) ne 2L || n_elements(header) eq 0L) then return
+
+  draw_wid = widget_info(self.tlb, find_by_uname='draw')
+  geo_info = widget_info(draw_wid, /geometry)
+
+  dims = size(data, /dimensions)
+
+  frpix1 = (sxpar(header, 'FRPIX1') - 1.0) / dims[0]
+  frpix2 = (sxpar(header, 'FRPIX2') - 1.0) / dims[1]
+  fradius = (sxpar(header, 'FRADIUS'))
+
+  crpix1 = (sxpar(header, 'CRPIX1') - 1.0) / dims[0]
+  crpix2 = (sxpar(header, 'CRPIX2') - 1.0) / dims[1]
+  cradius = (sxpar(header, 'ORADIUS'))
+
+  t = findgen(360) * !dtor
+  fx = geo_info.draw_xsize * (fradius / dims[0] * cos(t) + frpix1)
+  fy = geo_info.draw_ysize * (fradius / dims[1] * sin(t) + frpix2)
+
+  cx = geo_info.draw_xsize * (cradius / dims[0] * cos(t) + crpix1)
+  cy = geo_info.draw_ysize * (cradius / dims[1] * sin(t) + crpix2)
+
+  fieldstop_color = 'ffffff'x
+  occulter_color = '00ffff'x
+
+  device, get_decomposed=odec
+  device, decomposed=1
+
+  plots, geo_info.draw_xsize * [frpix1], geo_info.draw_ysize * [frpix2], $
+         psym=1, /device, color=fieldstop_color
+  plots, fx, fy, /device, color=fieldstop_color
+
+  plots, geo_info.draw_xsize * [crpix1], geo_info.draw_ysize * [crpix2], $
+         psym=1, /device, color=occulter_color
+  plots, cx, cy, /device, color=occulter_color
+
+  device, decomposed=odec
 end
 
 
