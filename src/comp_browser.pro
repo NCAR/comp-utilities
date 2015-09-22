@@ -328,14 +328,19 @@ end
 pro comp_browser::annotate_image, data, header
   compile_opt strictarr
 
+  ; back sure data is passed in
   if (n_elements(data) eq 0L $
         || size(data, /n_dimensions) ne 2L $
         || n_elements(header) eq 0L) then return
 
+  dims = size(data, /dimensions)
+
+  ; only annotating level 1 data
+  if (~array_equal(dims, [620, 620])) then return
+
   draw_wid = widget_info(self.tlb, find_by_uname='draw')
   geo_info = widget_info(draw_wid, /geometry)
 
-  dims = size(data, /dimensions)
 
   frpix1 = (sxpar(header, 'FRPIX1') - 1.0) / dims[0]
   frpix2 = (sxpar(header, 'FRPIX2') - 1.0) / dims[1]
