@@ -1,5 +1,37 @@
 ; docformat = 'rst'
 
+;+
+; This handles data with NaNs inserted in the manner of
+; `COMP_PLOT_CROSSTALKPARAMS`. It finds the "groups" of good data in
+; `data`. It assumes the following about `data`:
+;
+;   1. there are not leading or trailing NaNs
+;   2. there are not two or more consecutive NaNs
+;
+; :Returns:
+;   `lonarr`; the output will give the index of the first element in
+;   each group, including an extra element at the end of the array
+;   with the value of 2 more than the index of the last element of the
+;   last group
+;
+; :Params:
+;   data : in, required, type=fltarr
+;     data to find groups in
+;
+; :Keywords:
+;   n_groups : out, optional, type=long
+;     retrieve the number of groups in the data
+;-
+function comp_plot_crosstalkparams_groups, data, n_groups=n_groups
+  compile_opt strictarr
+
+  nan_ind = where(finite(data) eq 0, n_nan)
+  n_groups = n_nan + 1L
+
+  return, [0L, nan_ind + 1L, n_elements(data) + 1L]
+end
+
+
 pro comp_plot_crosstalkparams, path, date, charsize=charsize, _extra=e
   compile_opt strictarr
 
@@ -81,7 +113,7 @@ pro comp_plot_crosstalkparams, path, date, charsize=charsize, _extra=e
       if (f eq 0) then begin
         plot, t, y, /nodata, $
               title=c lt 3 ? titles[c] : '', $
-              ystyle=8, yrange=[min(min_coeffs[c]), max(max_coeffs[c])], $
+              ystyle=9, yrange=[min(min_coeffs[c]), max(max_coeffs[c])], $
               ytitle=c mod 3 eq 0 ? ytitles[c / 3] : '', $
               xrange=time_range, xstyle=9, $
               xtickformat='label_date', xtickunits='Time', $
@@ -92,11 +124,29 @@ pro comp_plot_crosstalkparams, path, date, charsize=charsize, _extra=e
         oplot, t, y, color=colors[f], _extra=e
       endelse
 
+      group_ind = comp_plot_crosstalkparams_groups(t, n_groups=n_groups)
+      for g = 0L, n_groups - 1L do begin
+        start_index = group_ind[g]
+        end_index = group_ind[g + 1] - 2L
+        rms = sqrt(total((y[start_index:end_index])^2) / (end_index - start_index + 1L))
+
+        if (rms ne 0.0) then begin
+          xloc = 0.5 * (t[start_index] + t[end_index])
+          yloc = min(min_coeffs[c]) + (1.0 - 0.1 * f) * (max(max_coeffs[c]) - min(min_coeffs[c]))
+          xyouts, xloc, yloc, $
+                  string(rms, format='(E0.2)'), $
+                  color=colors[f], $
+                  charsize=charsize * 0.5, alignment=0.5, /data
+        endif
+      endfor
+
       ; give legend
       xyouts, t[-1], y[-1], wavelengths[f], color=colors[f], charsize=charsize * 0.5
     endfor
   endfor
   !p.multi = 0
+
+  xyouts, 0.98, 0.98, date, /normal, charsize=charsize * 0.6, alignment=1.0
   device, decomposed=odec
 end
 
@@ -116,7 +166,11 @@ endif else begin
 endelse
 
 p = '/hao/compdata1/Data/CoMP/logs.joe3/engineering/2015/'
+
+;d = '20150608'
+;d = '20150622'
 d = '20150624'
+
 comp_plot_crosstalkparams, p, d, charsize=charsize
 
 
