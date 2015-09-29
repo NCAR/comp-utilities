@@ -407,14 +407,20 @@ end
 ;-
 pro comp_browser, pfilenames, filenames=kfilenames, tlb=tlb
   compile_opt strictarr
-  
+  common comp_browser_common, browser
+
   ; parameter filename takes precedence (it clobbers keyword filename,
   ; if both present)
 
   if (n_elements(kfilenames) gt 0L) then _filenames = kfilenames
   if (n_elements(pfilenames) gt 0L) then _filenames = pfilenames
 
-  b = mg_fits_browser(pfilenames, filenames=kfilenames, tlb=tlb, $
-                      classname='comp_browser')
+  if (n_elements(browser) eq 0L) then begin
+    browser = mg_fits_browser(filenames=_filenames, $
+                              tlb=tlb, $
+                              classname='comp_browser')
+  endif else begin
+    browser->load_files, _filenames
+  endelse
 end
 
