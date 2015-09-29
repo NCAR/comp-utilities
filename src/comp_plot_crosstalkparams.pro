@@ -32,14 +32,49 @@ function comp_plot_crosstalkparams_groups, data, n_groups=n_groups
 end
 
 
-pro comp_plot_crosstalkparams, path, date, charsize=charsize, _extra=e
+function comp_plot_crosstalkparams_tojd, dt
   compile_opt strictarr
+
+  t = strsplit(dt, '.', /extract)
+  
+  year   = long(strmid(t[0], 0, 4))
+  month  = long(strmid(t[0], 4, 2))
+  day    = long(strmid(t[0], 6, 2))
+
+  hour   = long(strmid(t[1], 0, 2))
+  minute = long(strmid(t[1], 2, 2))
+  second = long(strmid(t[1], 4, 2))
+
+  return, julday(month, day, year, hour, minute, second)
+end
+
+
+;+
+; Plot the crosstalk paramaters.
+;
+; :Params:
+;   log_path : in, required, type=string
+;     path to logs directory, i.e.,
+;     /hao/compdata1/Data/CoMP/logs.backgrnd
+;   process_path : in, required, type=string
+;     path to process directory, i.e., /hao/compdata1/Data/CoMP/process.backgrnd
+;   date : in, required, type=string
+;     date to check, i.e., '20150624'
+;-
+pro comp_plot_crosstalkparams, log_path, process_path, date, $
+                               charsize=charsize, _extra=e
+  compile_opt strictarr
+  on_error, 2
+
+  eng_path = filepath('', $
+                      subdir=['engineering', strmid(date, 0, 4)], $
+                      root=log_path)
 
   ; maximum gap (in minutes) before not connecting points
   min_gap = 30.0
 
   search_names = string(date, format='(%"%s.comp.*.crosstalk.txt")')
-  search_path = filepath(search_names, root=path)
+  search_path = filepath(search_names, root=eng_path)
   files = file_search(search_path, count=n_files)
 
   if (n_files eq 0L) then return
@@ -54,35 +89,75 @@ pro comp_plot_crosstalkparams, path, date, charsize=charsize, _extra=e
 
   total_n_lines = total(n_lines, /integer)
 
-  times = dblarr(total_n_lines)
-  coeffs = dblarr(12, total_n_lines)
+  times      = dblarr(total_n_lines)
+  datetimes  = strarr(total_n_lines)
+  coeffs     = dblarr(12, total_n_lines)
+  gbu_scores = bytarr(total_n_lines)
 
   line = ''
   offset = 0L
+  format = '(C(CYI04, CMOI02, CDI02, ".", CHI02, CMI02, CSI02))'
+
   for f = 0L, n_files - 1L do begin
     openr, lun, files[f], /get_lun
 
     for i = 0L, n_lines[f] - 1L do begin
       readf, lun, line
       tokens = strsplit(line, ',', /extract)
-      t = strsplit(tokens[0], '.', /extract)
 
-      year   = long(strmid(t[0], 0, 4))
-      month  = long(strmid(t[0], 4, 2))
-      day    = long(strmid(t[0], 6, 2))
-
-      hour   = long(strmid(t[1], 0, 2))
-      minute = long(strmid(t[1], 2, 2))
-      second = long(strmid(t[1], 4, 2))
-
-      times[i + offset] = julday(month, day, year, hour, minute, second)
-
+      times[i + offset] = comp_plot_crosstalkparams_tojd(tokens[0])
+      datetimes[i + offset] = string(times[i + offset], format=format)
       coeffs[*, i + offset] = double(tokens[1:12])
     endfor
 
     free_lun, lun
 
     offset += n_lines[f]
+  endfor
+
+  ; get GBU scores
+
+  gbu_n_lines = lonarr(n_files)
+  for f = 0L, n_files - 1L do begin
+    gbu_name = string(wavelengths[f], format='(%"GBU.%d.log")')
+    gbu_filename = filepath(gbu_name, subdir=date, root=process_path)
+    gbu_n_lines[f] = file_lines(gbu_filename) - 1L
+  endfor
+
+  gbu_total_n_lines = total(gbu_n_lines, /integer)
+  all_gbu_scores = replicate({datetime: '', score: 0B}, gbu_total_n_lines)
+
+  offset = 0L
+  for w = 0L, n_files - 1L do begin
+    gbu_name = string(wavelengths[w], format='(%"GBU.%d.log")')
+    gbu_filename = filepath(gbu_name, subdir=date, root=process_path)
+
+    openr, lun, gbu_filename, /get_lun
+    readf, lun, line ; throw away header line
+
+    for i = 0L, gbu_n_lines[w] - 1L do begin
+      readf, lun, line
+      tokens = strsplit(line, /extract)
+
+      datetime_jd = comp_plot_crosstalkparams_tojd(tokens[0])
+      datetime = string(datetime_jd - 10.0 /24.0, format=format)
+      score = fix(tokens[5])
+
+      all_gbu_scores[i + offset].datetime = datetime
+      all_gbu_scores[i + offset].score = score
+    endfor
+
+    free_lun, lun
+
+    offset += gbu_n_lines[w]
+  endfor
+
+  for i = 0L, total_n_lines - 1L do begin
+    ind = where(datetimes[i] eq all_gbu_scores.datetime, count)
+    if (count eq 0L) then begin
+      message, 'date/time not found in GBU: ' + datetimes[i]
+    endif
+    gbu_scores[i] = all_gbu_scores[ind[0]].score
   endfor
 
   max_coeffs = max(coeffs, min=min_coeffs, dimension=2)
@@ -109,6 +184,17 @@ pro comp_plot_crosstalkparams, path, date, charsize=charsize, _extra=e
                    min_gap_length=min_gap / (24.0 * 60.0), $
                    gap_value=!values.d_nan, $
                    x_out=t, y_out=y
+      mg_add_gaps, times[begin_line:end_line], gbu_scores[begin_line:end_line], $
+                   min_gap_length=min_gap / (24.0 * 60.0), $
+                   gap_value=!values.d_nan, $
+                   y_out=gbus
+
+      bad_ind = where(gbus ne 0B, n_bad)
+      if (n_bad gt 0L) then begin
+        print, n_bad, wavelengths[f], c, $
+               format='(%"removing %d in %s wavelength, coeff %d")'
+        y[bad_ind] = !values.d_nan
+      endif
 
       if (f eq 0) then begin
         plot, t, y, /nodata, $
@@ -165,13 +251,14 @@ endif else begin
   charsize = 2.0
 endelse
 
-p = '/hao/compdata1/Data/CoMP/logs.joe3/engineering/2015/'
+log_path = '/hao/compdata1/Data/CoMP/logs.backgrnd'
+process_path = '/hao/compdata1/Data/CoMP/process.backgrnd'
 
 ;d = '20150608'
 ;d = '20150622'
-d = '20150624'
+date = '20150624'
 
-comp_plot_crosstalkparams, p, d, charsize=charsize
+comp_plot_crosstalkparams, log_path, process_path, date, charsize=charsize
 
 
 if (keyword_set(to_ps)) then begin
