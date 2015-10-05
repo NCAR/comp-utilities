@@ -415,12 +415,12 @@ pro comp_browser, pfilenames, filenames=kfilenames, tlb=tlb
   if (n_elements(kfilenames) gt 0L) then _filenames = kfilenames
   if (n_elements(pfilenames) gt 0L) then _filenames = pfilenames
 
-  if (n_elements(browser) eq 0L) then begin
+  if (obj_valid(browser)) then begin
+    browser->load_files, _filenames
+  endif else begin
     browser = mg_fits_browser(filenames=_filenames, $
                               tlb=tlb, $
                               classname='comp_browser')
-  endif else begin
-    browser->load_files, _filenames
   endelse
 end
 
