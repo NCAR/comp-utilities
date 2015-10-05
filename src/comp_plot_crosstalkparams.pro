@@ -190,11 +190,7 @@ pro comp_plot_crosstalkparams, log_path, process_path, date, $
                    y_out=gbus
 
       bad_ind = where(gbus ne 0B, n_bad)
-      if (n_bad gt 0L) then begin
-        print, n_bad, wavelengths[f], c, $
-               format='(%"removing %d in %s wavelength, coeff %d")'
-        y[bad_ind] = !values.d_nan
-      endif
+      if (n_bad gt 0L) then y[bad_ind] = !values.d_nan
 
       if (f eq 0) then begin
         plot, t, y, /nodata, $
@@ -214,7 +210,7 @@ pro comp_plot_crosstalkparams, log_path, process_path, date, $
       for g = 0L, n_groups - 1L do begin
         start_index = group_ind[g]
         end_index = group_ind[g + 1] - 2L
-        rms = sqrt(total((y[start_index:end_index])^2) / (end_index - start_index + 1L))
+        rms = mg_rms(y[start_index:end_index], /nan)
 
         if (rms ne 0.0) then begin
           xloc = 0.5 * (t[start_index] + t[end_index])
@@ -251,8 +247,8 @@ endif else begin
   charsize = 2.0
 endelse
 
-log_path = '/hao/compdata1/Data/CoMP/logs.backgrnd'
-process_path = '/hao/compdata1/Data/CoMP/process.backgrnd'
+log_path = '/hao/compdata1/Data/CoMP/logs.backgrnd2'
+process_path = '/hao/compdata1/Data/CoMP/process.backgrnd2'
 
 ;d = '20150608'
 ;d = '20150622'
