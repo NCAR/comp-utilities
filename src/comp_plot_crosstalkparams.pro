@@ -211,12 +211,13 @@ pro comp_plot_crosstalkparams, log_path, process_path, date, $
         start_index = group_ind[g]
         end_index = group_ind[g + 1] - 2L
         rms = mg_rms(y[start_index:end_index], /nan)
+        mean = mean(y[start_index:end_index], /nan)
 
         if (rms ne 0.0) then begin
           xloc = 0.5 * (t[start_index] + t[end_index])
           yloc = min(min_coeffs[c]) + (1.0 - 0.1 * f) * (max(max_coeffs[c]) - min(min_coeffs[c]))
           xyouts, xloc, yloc, $
-                  string(rms, format='(E0.2)'), $
+                  string(mean, rms, format='(E0.2, " [", E0.2, "]")'), $
                   color=colors[f], $
                   charsize=charsize * 0.5, alignment=0.5, /data
         endif
