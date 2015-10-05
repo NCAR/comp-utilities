@@ -248,8 +248,8 @@ endif else begin
   charsize = 2.0
 endelse
 
-log_path = '/hao/compdata1/Data/CoMP/logs.backgrnd2'
-process_path = '/hao/compdata1/Data/CoMP/process.backgrnd2'
+log_path = '/hao/compdata1/Data/CoMP/logs.backgrnd'
+process_path = '/hao/compdata1/Data/CoMP/process.backgrnd'
 
 ;d = '20150608'
 ;d = '20150622'
