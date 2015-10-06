@@ -337,7 +337,7 @@ pro comp_dir_browser::handle_events, event
           'WIDGET_CONTEXT': begin
               widget_displaycontextmenu, event.id, event.x, event.y, self.context_base
             end
-          else: help, event
+          else:
         endcase
       end
     'display_files': begin
