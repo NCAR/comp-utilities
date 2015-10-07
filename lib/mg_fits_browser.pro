@@ -238,6 +238,37 @@ end
 
 
 ;+
+; Redisplay the currently selected item.
+;-
+pro mg_fits_browser::redisplay
+  compile_opt strictarr
+
+  uname = widget_info(self.currently_selected, /uname)
+  case uname of
+      'fits:file': begin
+        widget_control, self.currently_selected, get_uvalue=f
+
+        fits_open, f, fcb
+        fits_read, fcb, data, header, exten_no=0
+        fits_close, fcb
+      end
+    'fits:extension': begin
+        widget_control, self.currently_selected, get_uvalue=e
+        parent_id = widget_info(self.currently_selected, /parent)
+        widget_control, parent_id, get_uvalue=f
+
+        fits_open, f, fcb
+        fits_read, fcb, data, header, exten_no=e
+        fits_close, fcb
+      end
+    else:
+  endcase
+  self->display, data, header
+end
+
+
+
+;+
 ; Set the window title based on the current filename. Set the filename to the
 ; empty string if there is no title to display.
 ;
@@ -402,27 +433,7 @@ pro mg_fits_browser::handle_events, event
         endelse
 
         if (self.currently_selected le 0L) then return
-        uname = widget_info(self.currently_selected, /uname)
-        case uname of
-          'fits:file': begin
-              widget_control, self.currently_selected, get_uvalue=f
-
-              fits_open, f, fcb
-              fits_read, fcb, data, header, exten_no=0
-              fits_close, fcb
-            end
-        'fits:extension': begin
-            widget_control, self.currently_selected, get_uvalue=e
-            parent_id = widget_info(self.currently_selected, /parent)
-            widget_control, parent_id, get_uvalue=f
-
-            fits_open, f, fcb
-            fits_read, fcb, data, header, exten_no=e
-            fits_close, fcb
-          end
-          else:
-        endcase
-        self->display, data, header
+        self->redisplay
       end
     'fits:file': begin
         self.currently_selected = event.id
@@ -477,6 +488,10 @@ end
 
 ;+
 ; Create the widget hierarchy.
+;
+; :Params:
+;   _extra : in, optional, type=keywords
+;     keywords to `WIDGET_BASE`
 ;-
 pro mg_fits_browser::create_widgets, _extra=e
   compile_opt strictarr
@@ -486,7 +501,7 @@ pro mg_fits_browser::create_widgets, _extra=e
 
   ; toolbar
   bitmapdir = ['resource', 'bitmaps']
-  toolbar = widget_base(self.tlb, /toolbar, /row)
+  toolbar = widget_base(self.tlb, /toolbar, /row, uname='toolbar')
 
   file_toolbar = widget_base(toolbar, /toolbar, /row)
   open_button = widget_button(file_toolbar, /bitmap, uname='open', $
@@ -506,7 +521,7 @@ pro mg_fits_browser::create_widgets, _extra=e
                                                  subdir=bitmapdir))
 
   ; content row
-  content_base = widget_base(self.tlb, /row)
+  content_base = widget_base(self.tlb, /row, uname='content_base')
 
   tree_xsize = 300
   scr_ysize = 512
@@ -534,7 +549,7 @@ pro mg_fits_browser::create_widgets, _extra=e
   ; variable name for import
 
   ; status bar
-  self.statusbar = widget_label(self.tlb, scr_xsize=tree_xsize + scr_ysize, $
+  self.statusbar = widget_label(self.tlb, scr_xsize=tree_xsize + scr_ysize + 2 * 4.0, $
                                 /align_left, /sunken_frame)
 end
 
@@ -586,14 +601,16 @@ end
 ;     filenames of FITS files to view
 ;   tlb : out, optional, type=long
 ;     widget identifier for the top-level base
+;   _extra : in, optional, type=keywords
+;     keywords to `::create_widgets`
 ;-
-function mg_fits_browser::init, filenames=filenames, tlb=tlb
+function mg_fits_browser::init, filenames=filenames, tlb=tlb, _extra=e
   compile_opt strictarr
 
   self.title = 'FITS Browser'
   self.path = ''
 
-  self->create_widgets
+  self->create_widgets, _extra=e
   self->realize_widgets
   self->start_xmanager
 

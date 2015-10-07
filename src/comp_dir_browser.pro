@@ -326,6 +326,7 @@ pro comp_dir_browser::handle_events, event
                    - 2 * statusbar_geometry.margin
 
         widget_control, self.tlb, update=0
+
         widget_control, self.tree, scr_ysize=height
         widget_control, self.table, scr_xsize=table_width, scr_ysize=height
         widget_control, self.statusbar, scr_xsize=statusbar_width
