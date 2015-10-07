@@ -52,7 +52,9 @@ function comp_dir_browser_row
            n_flat: '', $
            n_data: '', $
            wavelengths: '', $
-           pol_states: ''}
+           pol_states: '', $
+           obs_plan: '', $
+           obs_id: ''}
 end
 
 
@@ -253,8 +255,10 @@ pro comp_dir_browser::load_datedir, datedir
         files_info[f].time = time
 
         fits_open, files[f], fcb
-        comp_inventory, fcb, beam, group, wave, pol, type, expose, cover, $
-                        cal_pol, cal_ret
+        comp_query_file, fcb, beam_state=beam, wavelength=wave, $
+                         polarization=pol, type=type, $
+                         exposure=expose, cover=cover, $
+                         observation_id=obs_id, observation_plan=obs_plan
 
         n = n_elements(pol)
         case type of
@@ -383,7 +387,7 @@ end
 function comp_dir_browser_colwidths
   compile_opt strictarr
 
-  colwidths = [0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775]
+  colwidths = [0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15]
   return, colwidths / total(colwidths) * 0.995
 end
 
@@ -401,24 +405,27 @@ pro comp_dir_browser::create_widgets
   content_base = widget_base(self.tlb, /row, xpad=0)
 
   tree_xsize = 250
-  table_xsize = 700
+  table_xsize = 850
   scr_ysize = 600
   xpad = 0
 
   self.tree = widget_tree(content_base, uname='browser', $
                           scr_xsize=tree_xsize, scr_ysize=scr_ysize)
 
+  col_titles = ['Time', $
+                'Exposure', $
+                'N dark', $
+                'N flat', $
+                'N data', $
+                'Wavelengths', $
+                'Pol states', $
+                'Obs plan', $
+                'Obs ID']
   self.table = widget_table(content_base, $
                             /no_row_headers, $
-                            column_labels=['Time', $
-                                           'Exposure', $
-                                           'N dark', $
-                                           'N flat', $
-                                           'N data', $
-                                           'Wavelengths', $
-                                           'Pol states'], $
+                            column_labels=col_titles, $
                             column_widths=comp_dir_browser_colwidths() * table_xsize, $
-                            xsize=7, $
+                            xsize=n_elements(col_titles), $
                             scr_xsize=table_xsize, $
                             scr_ysize=scr_ysize, $
                             uname='table', $
