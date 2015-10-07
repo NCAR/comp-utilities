@@ -31,9 +31,9 @@ pro comp_query_file, fcb, $
   type = ''
   fits_read, fcb, data, header, /header_only, exten_no=0
 
-  observation_id = sxpar(header, 'OBS_ID', count=count)
+  observation_id = strtrim(sxpar(header, 'OBS_ID', count=count), 2)
   if (count eq 0L) then observation_id = ''
-  observation_plan = sxpar(header, 'OBS_PLAN', count=count)
+  observation_plan = strtrim(sxpar(header, 'OBS_PLAN', count=count), 2)
   if (count eq 0L) then observation_plan = ''
 
   ; type

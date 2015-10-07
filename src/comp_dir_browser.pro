@@ -190,9 +190,9 @@ end
 ;   `lonarr(3)`
 ;
 ; :Params:
-;   files_info : in, required, type=array of structures
+;   files_info : in, optional, type=array of structures
 ;     array of structures of the same type as the return value of
-;     `COMP_DIR_BROWSER_ROW`
+;     `COMP_DIR_BROWSER_ROW`; returns `lonarr(3)` if not present
 ;-
 function comp_dir_browser::compute_totals, files_info
   compile_opt strictarr
@@ -266,9 +266,12 @@ pro comp_dir_browser::load_datedir, datedir
           'DATA': files_info[f].n_data = strtrim(n, 2)
           'DARK': files_info[f].n_dark = strtrim(n, 2)
         endcase
+
         files_info[f].exposure = string(expose, format='(%"%0.1f ms")')
         files_info[f].pol_states = strjoin(strtrim(pol[uniq(pol, sort(pol))], 2), ', ')
         files_info[f].wavelengths = strjoin(strtrim(wave[uniq(wave, sort(wave))], 2), ', ')
+        files_info[f].obs_plan = obs_plan
+        files_info[f].obs_id = obs_id
 
         fits_close, fcb
       endfor
@@ -303,6 +306,8 @@ pro comp_dir_browser::handle_events, event
   uname = widget_info(event.id, /uname)
   case uname of
     'tlb': begin
+        table_column_widths = widget_info(self.table, /column_widths)
+
         tlb_geometry = widget_info(self.tlb, /geometry)
         content_base_geometry = widget_info(widget_info(self.tlb, /child), /geometry)
         tree_geometry = widget_info(self.tree, /geometry)
@@ -324,6 +329,13 @@ pro comp_dir_browser::handle_events, event
         widget_control, self.tree, scr_ysize=height
         widget_control, self.table, scr_xsize=table_width, scr_ysize=height
         widget_control, self.statusbar, scr_xsize=statusbar_width
+
+        ; extra room automatically goes to wavelengths
+        table_column_widths[5] += table_width - table_geometry.scr_xsize
+        table_column_widths[5] >= 100
+
+        widget_control, self.table, column_widths=table_column_widths
+
         widget_control, self.tlb, update=1
       end
     'table': begin
@@ -334,7 +346,7 @@ pro comp_dir_browser::handle_events, event
               current_view = widget_info(self.table, /table_view)
               widget_control, self.table, $
                               set_table_select=[0, event.sel_top, $
-                                                6, event.sel_bottom]
+                                                8, event.sel_bottom]
               widget_control, self.table, set_table_view=current_view
               self.selection = [event.sel_top, event.sel_bottom]
             end
@@ -352,8 +364,8 @@ pro comp_dir_browser::handle_events, event
         self.file_browser->load_files, (*(self.files))[self.selection[0]:self.selection[1]]
       end
     'compute_totals': begin
-        widget_control, self.table, get_uvalue=file_info
-        total_images = self->compute_totals(file_info)
+        widget_control, self.table, get_value=files_info
+        total_images = self->compute_totals(files_info)
         format = '(%"%d dark images, %d flat images, %d data images")'
         self->set_status, string(total_images[0], $
                                  total_images[1], $
@@ -388,7 +400,7 @@ function comp_dir_browser_colwidths
   compile_opt strictarr
 
   colwidths = [0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15]
-  return, colwidths / total(colwidths) * 0.995
+  return, colwidths / total(colwidths) * 0.975
 end
 
 
