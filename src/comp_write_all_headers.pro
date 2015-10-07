@@ -1,6 +1,6 @@
 ; docformat = 'rst'
 
-pro comp_save_all_headers, filename, output_filename
+pro comp_write_all_headers, filename, output_filename
   compile_opt strictarr
 
   openw, lun, output_filename, /get_lun
@@ -25,9 +25,9 @@ end
 day = '20150925'
 
 time = '071400'
-comp_save_all_headers, day + '.' + time + '.FTS', day + '.' + time + '.headers.txt'
+comp_write_all_headers, day + '.' + time + '.FTS', day + '.' + time + '.headers.txt'
 
 time = '093250'
-comp_save_all_headers, day + '.' + time + '.FTS', day + '.' + time + '.headers.txt'
+comp_write_all_headers, day + '.' + time + '.FTS', day + '.' + time + '.headers.txt'
 
 end
