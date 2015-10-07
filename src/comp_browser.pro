@@ -376,6 +376,23 @@ end
 
 
 ;+
+; Determine if annotation is avalable for a given image.
+;
+; :Params:
+;   data : in, required, type=2D array
+;     data to display
+;   header : in, required, type=strarr
+;     FITS header
+;-
+function comp_browser::annotate_available, data, header
+  compile_opt strictarr
+
+  level = self->get_level(data, header)
+  return, level ge 1L
+end
+
+
+;+
 ; Handle CoMP events
 ;-
 pro comp_browser::handle_events, event
