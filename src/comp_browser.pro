@@ -403,9 +403,6 @@ pro comp_browser::handle_events, event
                  - 2 * tlb_geometry.xpad $
                  - 2 * content_base_geometry.xpad - content_base_geometry.margin
 
-    help, event.x, event.y
-    help, statusbar_width, tree_height, draw_size, tree_width
-
     widget_control, self.tlb, update=0
 
     widget_control, draw, scr_xsize=draw_size, scr_ysize=draw_size
