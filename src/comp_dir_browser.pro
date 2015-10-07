@@ -149,7 +149,9 @@ pro comp_dir_browser::load_directory, dir
 
   ; add dir as root of tree
   root = widget_tree(self.tree, value=dirname, /folder, $
-                     uvalue=dir, uname='root')
+                     uvalue=file_expand_path(dir), $
+                     uname='root', $
+                     tooltip=file_expand_path(dir))
 
   raw_bmp = read_png(filepath('raw.png', root=mg_src_root()))
   raw_bmp = transpose(raw_bmp, [1, 2, 0])
@@ -175,7 +177,9 @@ pro comp_dir_browser::load_directory, dir
                           value=file_basename(datedirs[d]) $
                             + ' - ' + strtrim(n_files, 2) + ' files', $
                           bitmap=bitmap, $
-                          uvalue=datedirs[d], uname='datedir')
+                          uvalue=datedirs[d], $
+                          uname='datedir', $
+                          tooltip=file_expand_path(datedirs[d]))
   endfor
   widget_control, self.tree, update=1
 
@@ -372,6 +376,10 @@ pro comp_dir_browser::handle_events, event
                                  total_images[1], $
                                  total_images[2], $
                                  format=format)
+      end
+    'root': begin
+        widget_control, event.id, get_uvalue=full_path
+        self->set_status, full_path
       end
     'datedir': begin
         widget_control, event.id, get_uvalue=datedir
