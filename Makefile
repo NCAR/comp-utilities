@@ -23,5 +23,6 @@ help:
 	@echo "Makefile targets:"
 	@echo "  doc       generate developer documentation"
 	@echo "  userdoc   generate user documentation"
+	@echo "  env       start IDL with the comp-utilities paths"
 	@echo "  clean     remove generated documentation"
 	@echo "  help      print this message"
