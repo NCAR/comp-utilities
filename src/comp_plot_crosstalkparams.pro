@@ -8,6 +8,8 @@
 ;   1. there are not leading or trailing NaNs
 ;   2. there are not two or more consecutive NaNs
 ;
+; :Private:
+;
 ; :Returns:
 ;   `lonarr`; the output will give the index of the first element in
 ;   each group, including an extra element at the end of the array
@@ -32,6 +34,18 @@ function comp_plot_crosstalkparams_groups, data, n_groups=n_groups
 end
 
 
+;+
+; Convert date/time to Julian date.
+;
+; :Private:
+;
+; :Returns:
+;   double
+;
+; :Params:
+;   dt : in, required, type=string
+;     date/time to convert to Julian date
+;-
 function comp_plot_crosstalkparams_tojd, dt
   compile_opt strictarr
 
@@ -50,7 +64,11 @@ end
 
 
 ;+
-; Plot the crosstalk paramaters.
+; Plot the crosstalk paramaters in a grid where columns are crosstalk I to V,
+; Q to V, and U to V and the rows are the four fitting parameters: constant, x,
+; y, and xy.
+;
+; .. image:: crosstalk.png
 ;
 ; :Params:
 ;   log_path : in, required, type=string
@@ -60,6 +78,12 @@ end
 ;     path to process directory, i.e., /hao/compdata1/Data/CoMP/process.backgrnd
 ;   date : in, required, type=string
 ;     date to check, i.e., '20150624'
+;
+; :Keywords:
+;   charsize : in, optional, type=float
+;     base `CHARSIZE` for to use fractions of in the plots
+;   _extra : in, optional, type=keywords
+;     keywords to `PLOT` and `OPLOT`
 ;-
 pro comp_plot_crosstalkparams, log_path, process_path, date, $
                                charsize=charsize, _extra=e

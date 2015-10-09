@@ -1,7 +1,7 @@
 ; docformat = 'rst'
 
 ;+
-; Procedure to inventory contents of comp data file, beam status, group
+; Procedure to inventory contents of CoMP raw data file: beam status, group
 ; association, wavelength, polarization state, data type and exposure time are
 ; returned.
 ;
@@ -10,6 +10,31 @@
 ;
 ; Based on `COMP_INVENTORY`.
 ;
+; :Params:
+;   filename : in, required, type=string
+;     CoMP FITS file to query
+;
+; :Keywords:
+;   group : out, optional, type=intarr
+;     groups by extension
+;   beam_state : out, optional, type=intarr
+;     position of foreground/background beam
+;   polarization_state : out, optional, type=strarr
+;     polarization state, 'I+V', etc.
+;   type : out, optional, type=string
+;     type of CoMP data file "DARK", "OPAL", or "DATA"
+;   exposure : out, optional, type=float
+;     exposure time in milliseconds
+;   cover : out, optional, type=int
+;     cover present
+;   cal_polarizer : out, optional, type=int
+;     polarizer present
+;   cal_retarder : out, optional, type=int
+;     retarder present
+;   observation_id : out, optional, type=string
+;     ID for observation within an `OBSERVATION_PLAN`
+;   observation_plan : out, optional, type=string
+;     plan for file, i.e., synoptic, waves, etc.
 ;-
 pro comp_query_file, filename, $
                      group=group, $
