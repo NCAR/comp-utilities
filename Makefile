@@ -1,13 +1,19 @@
 IDL=idl
 
-.PHONY: doc userdoc clean help
+.PHONY: doc userdoc env clean help
+
+IDLDOC_PATH="+${HOME}/projects/idldoc"
+COMP_UTIL_PATH="lib:src:ssw:${IDLDOC_PATH}:<IDL_DEFAULT>"
 
 
 doc:
-	$(IDL) -e 'comp_util_make_docs'
+	$(IDL) -IDL_STARTUP '' -IDL_PATH ${COMP_UTIL_PATH} -e 'comp_util_make_docs'
 
 userdoc:
-	$(IDL) -e 'comp_util_make_docs, /user'
+	$(IDL) -IDL_STARTUP '' -IDL_PATH ${COMP_UTIL_PATH} -e 'comp_util_make_docs, /user'
+
+env:
+	$(IDL) -IDL_STARTUP '' -IDL_PATH ${COMP_UTIL_PATH}
 
 clean:
 	rm -rf api-docs
