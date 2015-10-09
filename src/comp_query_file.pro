@@ -7,8 +7,11 @@
 ;
 ; Groups are defind to be unique combinations of wavelength, beam and
 ; polarization state.
+;
+; Based on `COMP_INVENTORY`.
+;
 ;-
-pro comp_query_file, fcb, $
+pro comp_query_file, filename, $
                      group=group, $
                      beam_state=beam_state, $
                      wavelength=wavelength, $
@@ -22,6 +25,7 @@ pro comp_query_file, fcb, $
                      observation_plan=observation_plan
   compile_opt idl2
 
+  fits_open, filename, fcb
   n_extensions = fcb.nextend   ; number of images in file
 
   beam_state = intarr(n_extensions)
@@ -83,4 +87,6 @@ pro comp_query_file, fcb, $
       done:
     endfor
   endif
+
+  fits_close, fcb
 end

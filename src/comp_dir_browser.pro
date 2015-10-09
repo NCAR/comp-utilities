@@ -254,12 +254,12 @@ pro comp_dir_browser::load_datedir, datedir
         file_tokens = strsplit(basename, '.', /extract, count=n_files_tokens)
         time = file_tokens[1]
         time = strmid(time, 0, 2) $
-               + ':' + strmid(time, 2, 2) $
-               + ':' + strmid(time, 4, 2)
+                 + ':' + strmid(time, 2, 2) $
+                 + ':' + strmid(time, 4, 2)
         files_info[f].time = time
 
-        fits_open, files[f], fcb
-        comp_query_file, fcb, beam_state=beam, wavelength=wave, $
+        comp_query_file, files[f], $
+                         beam_state=beam, wavelength=wave, $
                          polarization=pol, type=type, $
                          exposure=expose, cover=cover, $
                          observation_id=obs_id, observation_plan=obs_plan
@@ -276,8 +276,6 @@ pro comp_dir_browser::load_datedir, datedir
         files_info[f].wavelengths = strjoin(strtrim(wave[uniq(wave, sort(wave))], 2), ', ')
         files_info[f].obs_plan = obs_plan
         files_info[f].obs_id = obs_id
-
-        fits_close, fcb
       endfor
     endelse
 
