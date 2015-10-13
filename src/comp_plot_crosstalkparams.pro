@@ -236,10 +236,15 @@ end
 
 ; main-level example program
 
-to_ps = 0B
+log_path = '/hao/compdata1/Data/CoMP/logs.backgrnd'
+process_path = '/hao/compdata1/Data/CoMP/process.backgrnd'
+
+date = '20141216'
+
+to_ps = 1B
 
 if (keyword_set(to_ps)) then begin
-  basename = 'crosstalk'
+  basename = 'crosstalk.' + date
   mg_psbegin, /image, filename=basename + '.ps', $
               xsize=10, ysize=7.5, /inches
   charsize = 0.75
@@ -247,13 +252,6 @@ endif else begin
   window, xsize=1500, ysize=750, /free, title='Crosstalk params'
   charsize = 2.0
 endelse
-
-log_path = '/hao/compdata1/Data/CoMP/logs.backgrnd'
-process_path = '/hao/compdata1/Data/CoMP/process.backgrnd'
-
-;d = '20150608'
-;d = '20150622'
-date = '20150624'
 
 comp_plot_crosstalkparams, log_path, process_path, date, charsize=charsize
 
