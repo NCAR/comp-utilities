@@ -24,7 +24,7 @@ pro comp_util_make_docs, user=user
           title='CoMP utilities API documentation', $
           subtitle='NCAR-HAO MLSO', $
           /embed, $
-          statistics=keyword_set(user), $
+          statistics=keyword_set(user) eq 0, $
           /use_latex, $
           format_style='rst', $
           overview='overview.txt', $
