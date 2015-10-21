@@ -135,6 +135,11 @@ end
 ;-
 pro comp_dir_browser::load_directory, dir
   compile_opt strictarr
+  on_error, 2
+
+  if (~file_test(dir, /directory)) then begin
+    message, 'not directory: ' + dir
+  endif
 
   dirname = file_basename(file_expand_path(dir))
 
@@ -574,14 +579,15 @@ pro comp_dir_browser, pdirectory, directory=kdirectory
   on_error, 2
   common comp_dir_browser, browser
 
-  _dir = n_elements(pdirectory) gt 0L ? pdirectory : (n_elements(kdirectory) gt 0L ? kdirectory : '')
+  _dir = n_elements(pdirectory) gt 0L $
+           ? pdirectory $
+           : (n_elements(kdirectory) gt 0L ? kdirectory : '')
   if (_dir eq '') then message, 'directory not specified'
 
-  if (obj_valid(browser)) then begin
-    browser->load_directory, _dir
-  endif else begin
-    browser = obj_new('comp_dir_browser', directory=_dir)
-  endelse
+  if (~obj_valid(browser)) then begin
+    browser = obj_new('comp_dir_browser')
+  endif
+  browser->load_directory, _dir
 end
 
 
