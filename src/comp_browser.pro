@@ -341,7 +341,6 @@ pro comp_browser::annotate_image, data, header
   draw_wid = widget_info(self.tlb, find_by_uname='draw')
   geo_info = widget_info(draw_wid, /geometry)
 
-
   frpix1 = (sxpar(header, 'FRPIX1') - 1.0) / dims[0]
   frpix2 = (sxpar(header, 'FRPIX2') - 1.0) / dims[1]
   fradius = (sxpar(header, 'FRADIUS'))
