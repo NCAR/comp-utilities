@@ -66,17 +66,31 @@ pro comp_query_file, filename, $
   if (count eq 0L) then observation_plan = ''
 
   ; type
-  cover = sxpar(header, 'COVER')
-  if (cover eq 0) then begin
-    type = 'DARK'
+  cover = sxpar(header, 'COVER', count=count)
+  if (count gt 0L) then begin
+    if (cover eq 0) then begin
+      type = 'DARK'
+    endif else begin
+      opal_value = sxpar(header, 'OPAL', count=count)
+      if (count gt 0L) then begin
+        if (opal_value eq 1) then begin
+          type = 'OPAL'
+        endif else begin
+          type = 'DATA'
+        endelse
+      endif else begin
+        type = 'UNKNOWN'
+      endelse
+    endelse
   endif else begin
-    opal_value = sxpar(header, 'OPAL')
-    if (opal_value eq 1) then begin
+    _type = strtrim(sxpar(header, 'DATATYPE', count=count), 2)
+    if (count gt 0L && _type eq 'FLAT') then begin
       type = 'OPAL'
     endif else begin
-      type = 'DATA'
+      type = 'UNKNOWN'
     endelse
   endelse
+
   cal_polarizer = sxpar(header, 'POLARIZR')
 
   cal_retarder = sxpar(header, 'RETARDER', count=count)
@@ -85,9 +99,12 @@ pro comp_query_file, filename, $
   ; other keywords
   for i = 0L, n_extensions - 1L do begin
     fits_read, fcb, data, header, /header_only, exten_no=i + 1L
-    beam_state[i] = sxpar(header, 'BEAM')
-    wavelength[i] = sxpar(header, 'WAVELENG')
-    polarization_state[i] = strcompress(sxpar(header, 'POLSTATE'), /remove_all)
+    beam_state[i] = sxpar(header, 'BEAM', count=count)
+    if (count eq 0L) then beam_state[i] = !values.f_nan
+    wavelength[i] = sxpar(header, 'WAVELENG', count=count)
+    if (count eq 0L) then wavelength[i] = !values.f_nan
+    polarization_state[i] = strcompress(sxpar(header, 'POLSTATE', count=count), /remove_all)
+    if (count eq 0L) then polarization_state[i] = ''
     exposure = sxpar(header, 'EXPOSURE')
   endfor
 

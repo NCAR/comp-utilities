@@ -261,7 +261,6 @@ pro comp_dir_browser::load_datedir, datedir
         time = strmid(time, 0, 2) $
                  + ':' + strmid(time, 2, 2) $
                  + ':' + strmid(time, 4, 2)
-        files_info[f].time = time
 
         comp_query_file, files[f], $
                          beam_state=beam, wavelength=wave, $
@@ -271,9 +270,18 @@ pro comp_dir_browser::load_datedir, datedir
 
         n = n_elements(pol)
         case type of
-          'OPAL': files_info[f].n_flat = strtrim(n, 2)
-          'DATA': files_info[f].n_data = strtrim(n, 2)
-          'DARK': files_info[f].n_dark = strtrim(n, 2)
+          'OPAL': begin
+              files_info[f].n_flat = strtrim(n, 2)
+              files_info[f].time = file_basename(files[f]) eq 'flat.fts' ? 'flats' : time
+            end
+          'DATA': begin
+              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].time = time
+            end
+          'DARK': begin
+              files_info[f].n_dark = strtrim(n, 2)
+              files_info[f].time = file_basename(files[f]) eq 'dark.fts' ? 'darks' : time
+            end
         endcase
 
         files_info[f].exposure = string(expose, format='(%"%0.1f ms")')
