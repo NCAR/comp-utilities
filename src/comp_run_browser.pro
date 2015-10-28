@@ -17,5 +17,10 @@ pro comp_run_browser, config_filename
 
   comp_dir_browser, [process_basedir, raw_basedir]
 
+  log_dir          = config->get('log_dir', section='log')
+  obs_dir          = '/hao/ftp/d5/mlso/log/observer'
+
+  comp_log_browser, log_dir, observer_log_dir=obs_dir
+
   obj_destroy, config
 end
