@@ -130,33 +130,12 @@ end
 ; Handle a directory of date directories which contain FITS files.
 ;
 ; :Params:
-;   dir : in, required, type=string
-;     root directory to load
+;   dir : in, required, type=string/strarr
+;     root directory/directories to load
 ;-
-pro comp_dir_browser::load_directory, dir
+pro comp_dir_browser::load_directory, dirs
   compile_opt strictarr
   on_error, 2
-
-  if (~file_test(dir, /directory)) then begin
-    message, 'not directory: ' + dir
-  endif
-
-  dirname = file_basename(file_expand_path(dir))
-
-  child = widget_info(self.tree, /child)
-  if (child eq 0L) then begin
-    self->set_title, dirname
-  endif else begin
-    self->set_title, 'several directories'
-  endelse
-
-  self->set_status, 'Loading ' + dirname + '...'
-
-  ; add dir as root of tree
-  root = widget_tree(self.tree, value=dirname, /folder, $
-                     uvalue=file_expand_path(dir), $
-                     uname='root', $
-                     tooltip=file_expand_path(dir))
 
   raw_bmp = read_png(filepath('raw.png', root=mg_src_root()))
   raw_bmp = transpose(raw_bmp, [1, 2, 0])
@@ -164,29 +143,53 @@ pro comp_dir_browser::load_directory, dir
   level1_bmp = read_png(filepath('level1.png', root=mg_src_root()))
   level1_bmp = transpose(level1_bmp, [1, 2, 0])
 
-  ; add subdirs of dir as nodes, uname='datedir'
-  datedirs = file_search(filepath('*', root=dir), /test_directory, $
-                          count=n_datedirs)
-  widget_control, self.tree, update=0
-  for d = 0L, n_datedirs - 1L do begin
-    ; TODO: identify datedir as containing L0 or L1 data, set icon to
-    ; represent
-    level = comp_dir_browser_findlevel(datedirs[d], files=files, n_files=n_files)
-    case level of
-      -1: bitmap = bytarr(16, 16, 3)
-       0: bitmap = raw_bmp
-       1: bitmap = level1_bmp
-       2: bitmap = level1_bmp
-    endcase
-    datedir = widget_tree(root, $
-                          value=file_basename(datedirs[d]) $
-                            + ' - ' + strtrim(n_files, 2) + ' files', $
-                          bitmap=bitmap, $
-                          uvalue=datedirs[d], $
-                          uname='datedir', $
-                          tooltip=file_expand_path(datedirs[d]))
-  endfor
-  widget_control, self.tree, update=1
+  foreach dir, dirs do begin
+    if (~file_test(dir, /directory)) then begin
+      message, 'not directory: ' + dir
+    endif
+
+    dirname = file_basename(file_expand_path(dir))
+
+    child = widget_info(self.tree, /child)
+    if (child eq 0L) then begin
+      self->set_title, dirname
+    endif else begin
+      self->set_title, 'several directories'
+    endelse
+
+    self->set_status, 'Loading ' + dirname + '...'
+
+    ; add dir as root of tree
+    root = widget_tree(self.tree, value=dirname, /folder, $
+                       uvalue=file_expand_path(dir), $
+                       uname='root', $
+                       tooltip=file_expand_path(dir))
+
+    ; add subdirs of dir as nodes, uname='datedir'
+    datedirs = file_search(filepath('*', root=dir), /test_directory, $
+                           count=n_datedirs)
+    widget_control, self.tree, update=0
+    for d = 0L, n_datedirs - 1L do begin
+      ; TODO: identify datedir as containing L0 or L1 data, set icon to
+      ; represent
+      level = comp_dir_browser_findlevel(datedirs[d], files=files, n_files=n_files)
+      case level of
+        -1: bitmap = bytarr(16, 16, 3)
+        0: bitmap = raw_bmp
+        1: bitmap = level1_bmp
+        2: bitmap = level1_bmp
+      endcase
+      datedir = widget_tree(root, $
+                            value=file_basename(datedirs[d]) $
+                                    + ' - ' + strtrim(n_files, 2) + ' files', $
+                            bitmap=bitmap, $
+                            uvalue=datedirs[d], $
+                            uname='datedir', $
+                            tooltip=file_expand_path(datedirs[d]))
+    endfor
+    widget_control, self.tree, update=1
+
+  endforeach
 
   self->set_status, 'Ready'
 end
@@ -579,8 +582,8 @@ end
 ;     directory to browse
 ;
 ; :Keywords:
-;   directory : in, optional, type=string
-;     directory to browse
+;   directory : in, optional, type=string/strarr
+;     directory/directories to browse
 ;-
 pro comp_dir_browser, pdirectory, directory=kdirectory
   compile_opt strictarr
@@ -590,7 +593,7 @@ pro comp_dir_browser, pdirectory, directory=kdirectory
   _dir = n_elements(pdirectory) gt 0L $
            ? pdirectory $
            : (n_elements(kdirectory) gt 0L ? kdirectory : '')
-  if (_dir eq '') then message, 'directory not specified'
+  if (n_elements(_dir) eq 1 && _dir eq '') then message, 'directory not specified'
 
   if (~obj_valid(browser)) then begin
     browser = obj_new('comp_dir_browser')
