@@ -435,7 +435,7 @@ pro comp_dir_browser::create_widgets
 
   self.tlb = widget_base(title=self.title, /column, /tlb_size_events, $
                          uvalue=self, uname='tlb')
-  
+
   ; content row
   content_base = widget_base(self.tlb, /row, xpad=0)
 
