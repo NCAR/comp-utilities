@@ -33,7 +33,46 @@ pro comp_log_browser_cleanup, tlb
 end
 
 
-pro comp_log_browser::_load_text_file, filename, text_widget
+;+
+; Filter the cidx log by the current log level and display the correct text.
+;-
+pro comp_log_browser::_filter
+  compile_opt strictarr
+
+  date = '[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}'
+  time = '[[:digit:]]{2}:[[:digit:]]{2}:[[:digit:]]{2}'
+  level = '([[:alpha:]]*):'
+  re = string(date, time, level, format='(%"^%s %s %s")')
+
+  tokens = stregex(*self.cidx_logtext, re, /extract, /subexpr)
+  levels = tokens[1, *]
+
+  mask = bytarr(n_elements(levels))
+  switch self.log_level of
+    5: mask or= levels eq 'DEBUG'
+    4: mask or= levels eq 'INFO'
+    3: mask or= levels eq 'WARN'
+    2: mask or= levels eq 'ERROR'
+    1: mask or= levels eq 'CRITICAL'
+  endswitch
+
+  ind = where(mask, count)
+  if (count gt 0L) then begin
+    filtered_text = (*self.cidx_logtext)[ind]
+  endif else filtered_text = ''
+  widget_control, self.cidx_text, set_value=filtered_text
+end
+
+
+;+
+; Load the contents of a file into the cidx log, but do not display. Call
+; `_filter` to filter text by the current log level and display.
+;
+; :Params:
+;   filename : in, required, type=string
+;     filename of text file to load as cidx log
+;-
+pro comp_log_browser::_load_text_file, filename
   compile_opt strictarr
 
   if (~file_test(filename)) then return
@@ -44,7 +83,7 @@ pro comp_log_browser::_load_text_file, filename, text_widget
   readf, lun, text
   free_lun, lun
 
-  widget_control, text_widget, set_value=text
+  *self.cidx_logtext = text
 end
 
 
@@ -82,6 +121,23 @@ pro comp_log_browser::set_status, msg, clear=clear
 end
 
 
+pro comp_log_browser::set_level, level
+  compile_opt strictarr
+
+  self.log_level = level
+  unames = 'filter_' + ['critical', 'error', 'warning', 'info', 'debug']
+  button = widget_info(self.tlb, find_by_uname=unames[level - 1L])
+  widget_control, button, /set_button
+end
+
+
+;+
+; Add a directory to the directory browser.
+;
+; :Params:
+;   dir : in, required, type=string
+;     directory name to load
+;-
 pro comp_log_browser::load_directory, dir
   compile_opt strictarr
 
@@ -94,6 +150,8 @@ pro comp_log_browser::load_directory, dir
     ; store state
     *self.dates = dates
     self.log_dir = dir
+
+    self->set_title, file_basename(dir)
   endif
 end
 
@@ -129,7 +187,7 @@ pro comp_log_browser::handle_events, event
         date = (*self.dates)[event.index]
         cidx_log_filename = filepath(date + '.log', subdir='cidx', root=self.log_dir)
 
-        self->_load_text_file, cidx_log_filename, self.cidx_text
+        self->_load_text_file, cidx_log_filename
 
         ; load observer log, if possible
         if (self.obs_log_dir ne '') then begin
@@ -142,10 +200,17 @@ pro comp_log_browser::handle_events, event
           obs_log_filename = filepath(obs_basename, subdir=year, root=self.obs_log_dir)
 
           self->_load_text_file, obs_log_filename, self.obs_text
-        endif
+        endif else self->set_status, 'No observer logs found'
       end
+    'filter_debug': self.log_level = 5
+    'filter_info': self.log_level = 4
+    'filter_warning': self.log_level = 3
+    'filter_error': self.log_level = 2
+    'filter_critical': self.log_level = 1
     else:
   endcase
+
+  self->_filter
 end
 
 
@@ -178,6 +243,19 @@ pro comp_log_browser::create_widgets
   open_button = widget_button(file_toolbar, /bitmap, uname='open', $
                               tooltip='Open FITS file', $
                               value=filepath('open.bmp', subdir=bitmapdir))
+
+  log_level_toolbar = widget_base(toolbar, /toolbar, /row)
+  log_levels_base = widget_base(log_level_toolbar, /row, xpad=0, ypad=0, /exclusive)
+  critical_button = widget_button(log_levels_base, value='Critical', $
+                                  accelerator='Shift+1', uname='filter_critical')
+  error_button = widget_button(log_levels_base, value='Error', $
+                               accelerator='Shift+2', uname='filter_error')
+  warning_button = widget_button(log_levels_base, value='Warning', $
+                                 accelerator='Shift+3', uname='filter_warning')
+  info_button = widget_button(log_levels_base, value='Info', $
+                              accelerator='Shift+4', uname='filter_info')
+  debug_button = widget_button(log_levels_base, value='Debug', $
+                               accelerator='Shift+5', uname='filter_debug')
 
   ; content row
   content_base = widget_base(self.tlb, /row, xpad=0)
@@ -234,7 +312,7 @@ end
 pro comp_log_browser::cleanup
   compile_opt strictarr
 
-  ptr_free, self.dates
+  ptr_free, self.dates, self.cidx_logtext
 end
 
 
@@ -248,6 +326,8 @@ function comp_log_browser::init
   self->start_xmanager
 
   self.dates = ptr_new(/allocate_heap)
+  self.cidx_logtext = ptr_new(/allocate_heap)
+  self->set_level, 5L
 
   self->set_status, 'Ready'
 
@@ -267,7 +347,9 @@ pro comp_log_browser__define
              dates: ptr_new(), $
              log_dir: '', $
              obs_log_dir: '', $
-             title: '' $
+             title: '', $
+             log_level: 0, $
+             cidx_logtext: ptr_new() $
            }
 end
 
