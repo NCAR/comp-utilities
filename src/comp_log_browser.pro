@@ -39,6 +39,8 @@ end
 pro comp_log_browser::_filter
   compile_opt strictarr
 
+  if (n_elements(*self.cidx_logtext) eq 0L) then return
+
   date = '[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}'
   time = '[[:digit:]]{2}:[[:digit:]]{2}:[[:digit:]]{2}'
   level = '([[:alpha:]]*):'
@@ -65,17 +67,16 @@ end
 
 
 ;+
-; Load the contents of a file into the cidx log, but do not display. Call
-; `_filter` to filter text by the current log level and display.
+; Load the contents of a file into the cidx log, but do not display.
 ;
 ; :Params:
 ;   filename : in, required, type=string
 ;     filename of text file to load as cidx log
 ;-
-pro comp_log_browser::_load_text_file, filename
+function comp_log_browser::_load_text_file, filename
   compile_opt strictarr
 
-  if (~file_test(filename)) then return
+  if (~file_test(filename)) then return, !null
 
   n_lines = file_lines(filename)
   text = strarr(n_lines)
@@ -83,7 +84,7 @@ pro comp_log_browser::_load_text_file, filename
   readf, lun, text
   free_lun, lun
 
-  *self.cidx_logtext = text
+  return, text
 end
 
 
@@ -151,11 +152,19 @@ pro comp_log_browser::load_directory, dir
     *self.dates = dates
     self.log_dir = dir
 
-    self->set_title, file_basename(dir)
+    self->set_title, file_basename(file_expand_path(dir))
   endif
 end
 
 
+;+
+; Save observer directory to search for appropriate observer logs when
+; changing date.
+;
+; :Params:
+;   dir : in, required, type=string
+;     observer log directory
+;-
 pro comp_log_browser::load_observer_directory, dir
   compile_opt strictarr
 
@@ -187,7 +196,7 @@ pro comp_log_browser::handle_events, event
         date = (*self.dates)[event.index]
         cidx_log_filename = filepath(date + '.log', subdir='cidx', root=self.log_dir)
 
-        self->_load_text_file, cidx_log_filename
+        *self.cidx_logtext = self->_load_text_file(cidx_log_filename)
 
         ; load observer log, if possible
         if (self.obs_log_dir ne '') then begin
@@ -199,7 +208,8 @@ pro comp_log_browser::handle_events, event
           obs_basename = string(year, doy, format='(%"mlso.%sd%03d.olog")')
           obs_log_filename = filepath(obs_basename, subdir=year, root=self.obs_log_dir)
 
-          self->_load_text_file, obs_log_filename, self.obs_text
+          widget_control, self.obs_text, $
+                          set_value=self->_load_text_file(obs_log_filename)
         endif else self->set_status, 'No observer logs found'
       end
     'filter_debug': self.log_level = 5
