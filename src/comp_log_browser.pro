@@ -191,7 +191,14 @@ pro comp_log_browser::handle_events, event
   case uname of
     'tlb': begin
         ; TODO: implement resizing
-    end
+      end
+    'timer': begin
+        ; TODO: refresh contents of cidx log viewing
+        ; TODO: refresh list of available dates
+
+        ; reset timer
+        widget_control, event.id, timer=self.timer_interval
+      end
     'list': begin
         date = (*self.dates)[event.index]
         cidx_log_filename = filepath(date + '.log', subdir='cidx', root=self.log_dir)
@@ -268,7 +275,7 @@ pro comp_log_browser::create_widgets
                                accelerator='Shift+5', uname='filter_debug')
 
   ; content row
-  content_base = widget_base(self.tlb, /row, xpad=0)
+  content_base = widget_base(self.tlb, /row, xpad=0, uname='timer')
 
   list_xsize = 125
   text_xsize = 850
@@ -304,6 +311,8 @@ pro comp_log_browser::realize_widgets
   compile_opt strictarr
 
   widget_control, self.tlb, /realize
+  timer_id = widget_info(self.tlb, find_by_uname='timer')
+  widget_control, timer_id, timer=self.timer_interval
 end
 
 
@@ -329,6 +338,7 @@ end
 function comp_log_browser::init
   compile_opt strictarr
 
+  self.timer_interval = 1.0
   self.title = 'CoMP log browser'
 
   self->create_widgets
@@ -358,6 +368,7 @@ pro comp_log_browser__define
              log_dir: '', $
              obs_log_dir: '', $
              title: '', $
+             timer_interval: 0.0, $
              log_level: 0, $
              cidx_logtext: ptr_new() $
            }
