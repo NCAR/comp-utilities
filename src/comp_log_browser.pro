@@ -191,6 +191,29 @@ pro comp_log_browser::handle_events, event
   case uname of
     'tlb': begin
         ; TODO: implement resizing
+        toolbar = widget_info(self.tlb, find_by_uname='toolbar')
+
+        tlb_geometry = widget_info(self.tlb, /geometry)
+        list_geometry = widget_info(self.list, /geometry)
+        cidx_geometry = widget_info(self.cidx_text, /geometry)
+        statusbar_geometry = widget_info(self.statusbar, /geometry)
+        toolbar_geometry = widget_info(toolbar, /geometry)
+
+        statusbar_width = event.x - 2 * tlb_geometry.xpad
+        list_height = event.y - statusbar_geometry.scr_ysize - toolbar_geometry.scr_ysize $
+                        - 2 * tlb_geometry.space $
+                        - 2 * tlb_geometry.ypad - 2 * tlb_geometry.margin
+        cidx_width = cidx_geometry.scr_xsize + statusbar_width - statusbar_geometry.scr_xsize
+        cidx_height = cidx_geometry.scr_ysize + list_height - list_geometry.scr_ysize
+
+        widget_control, self.tlb, update=0
+
+        widget_control, self.cidx_text, scr_xsize=cidx_width, scr_ysize=cidx_height
+        widget_control, self.obs_text, scr_xsize=cidx_width, scr_ysize=cidx_height
+        widget_control, self.statusbar, scr_xsize=statusbar_width
+        widget_control, self.list, scr_ysize=list_height
+
+        widget_control, self.tlb, update=1
       end
     'timer': begin
         ; TODO: refresh contents of cidx log viewing
@@ -275,7 +298,7 @@ pro comp_log_browser::create_widgets
                                accelerator='Shift+5', uname='filter_debug')
 
   ; content row
-  content_base = widget_base(self.tlb, /row, xpad=0, uname='timer')
+  content_base = widget_base(self.tlb, /row, xpad=0, ypad=0, uname='timer')
 
   list_xsize = 125
   text_xsize = 850
