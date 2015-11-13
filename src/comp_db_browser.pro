@@ -73,6 +73,26 @@ pro comp_db_browser::set_status, msg, clear=clear
 end
 
 
+pro comp_db_browser::_update_table
+  compile_opt strictarr
+
+  db_values = self.db->query('select * from %s limit 500', self.current_table, $
+                             status=status, error_message=error_message)
+
+  if (n_elements(db_values) eq 0L) then begin
+    n_blank = 10
+    widget_control, self.table, set_value=strarr(n_blank), $
+                    xsize=n_blank, $
+                    column_labels=strarr(n_blank)
+  endif else begin
+    widget_control, self.table, $
+                    set_value=db_values, $
+                    xsize=n_tags(db_values), $
+                    column_labels=tag_names(db_values)
+  endelse
+end
+
+
 ;= widget events
 
 pro comp_db_browser::handle_events, event
@@ -100,6 +120,20 @@ pro comp_db_browser::handle_events, event
 
         widget_control, self.tlb, update=1
       end
+    'databases': begin
+        self->setProperty, database=event.str
+        table_list = widget_info(self.tlb, find_by_uname='tables')
+        tables = self.db->list_tables()
+        self->setProperty, table=tables[0]
+        widget_control, table_list, set_value=tables
+
+        self->_update_table
+      end
+    'tables': begin
+        self->setProperty, table=event.str
+
+        self->_update_table
+      end
     else:
   endcase
 end
@@ -124,9 +158,19 @@ pro comp_db_browser::create_widgets
   table_ysize = 600
   xpad = 0
 
-  db_values = self.db->query('select * from file_kcor limit 500', fields=fields)
+  dbs = self.db->list_dbs()
+  self->setProperty, database=dbs[0]
+  tables = self.db->list_tables()
+  self->setProperty, table=tables[0]
+  db_values = self.db->query('select * from %s limit 500', tables[0])
+
   self.tlb = widget_base(title=self.title, /column, /tlb_size_events, $
                          uvalue=self, uname='tlb')
+
+  ; toolbar
+  toolbar = widget_base(self.tlb, /row, uname='toolbar')
+  database_list = widget_combobox(toolbar, value=dbs, uname='databases')
+  table_list = widget_combobox(toolbar, value=tables, uname='tables')
 
   self.table = widget_table(self.tlb, $
                             /no_row_headers, $
@@ -168,6 +212,23 @@ pro comp_db_browser::start_xmanager
 end
 
 
+;= property access
+
+pro comp_db_browser::setProperty, database=database, table=table
+  compile_opt strictarr
+
+  if (n_elements(database) gt 0L) then begin
+    self.current_database = database
+    self.db->setProperty, database=database
+  endif
+
+  if (n_elements(table) gt 0L) then begin
+    self.current_table = table
+  endif
+end
+
+
+
 ;= lifecycle methods
 
 pro comp_db_browser::cleanup
@@ -198,7 +259,6 @@ function comp_db_browser::init, config_filename, section=section
   self.db->setProperty, mysql_secure_auth=0
   self.db->connect, config_filename=_config_filename, $
                     config_section=_section, $
-                    database='MLSO', $
                     error_message=error_message
   self.db->getProperty, host_name=host
 
@@ -220,7 +280,9 @@ pro comp_db_browser__define
              tlb: 0L, $
              db: obj_new(), $
              table: 0L, $
-             statusbar: 0L $
+             statusbar: 0L, $
+             current_database: '', $
+             current_table: '' $
            }
 end
 
