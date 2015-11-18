@@ -73,11 +73,8 @@ pro comp_db_browser::set_status, msg, clear=clear
 end
 
 
-pro comp_db_browser::_update_table
+pro comp_db_browser::_update_table, db_values
   compile_opt strictarr
-
-  db_values = self.db->query('select * from %s limit 500', self.current_table, $
-                             status=status, error_message=error_message)
 
   if (n_elements(db_values) eq 0L) then begin
     n_blank = 10
@@ -90,6 +87,21 @@ pro comp_db_browser::_update_table
                     xsize=n_tags(db_values), $
                     column_labels=tag_names(db_values)
   endelse
+end
+
+
+function comp_db_browser::get_data
+  compile_opt strictarr
+
+  self->setProperty, database='MLSO'
+
+  case self.current_instrument of
+    'comp': self.current_table = keyword_set(self.current_engineering) ? 'comp_eng' : 'comp_img'
+    'kcor': self.current_table = keyword_set(self.current_engineering) ? 'kcor_eng' : 'kcor_img'
+  endcase
+
+  return, self.db->query('select * from %s limit %s', $
+                         self.current_table, self.current_limit)
 end
 
 
@@ -120,19 +132,22 @@ pro comp_db_browser::handle_events, event
 
         widget_control, self.tlb, update=1
       end
-    'databases': begin
-        self->setProperty, database=event.str
-        table_list = widget_info(self.tlb, find_by_uname='tables')
-        tables = self.db->list_tables()
-        self->setProperty, table=tables[0]
-        widget_control, table_list, set_value=tables
-
-        self->_update_table
+    'instrument': begin
+        self.current_instrument = strlowcase(event.str)
+        self->_update_table, self->get_data()
       end
-    'tables': begin
-        self->setProperty, table=event.str
-
-        self->_update_table
+    'eng': begin
+        self.current_engineering = 1B
+        self->_update_table, self->get_data()
+      end
+    'images': begin
+        self.current_engineering = 0B
+        self->_update_table, self->get_data()
+      end
+    'limit': begin
+        widget_control, event.id, get_value=limit_value
+        self.current_limit = long(limit_value)
+        self->_update_table, self->get_data()
       end
     else:
   endcase
@@ -154,29 +169,47 @@ end
 pro comp_db_browser::create_widgets
   compile_opt strictarr
 
-  table_xsize = 800
+  table_xsize = 900
   table_ysize = 600
   xpad = 0
-
-  dbs = self.db->list_dbs()
-  self->setProperty, database=dbs[0]
-  tables = self.db->list_tables()
-  self->setProperty, table=tables[0]
-  db_values = self.db->query('select * from %s limit 500', tables[0])
 
   self.tlb = widget_base(title=self.title, /column, /tlb_size_events, $
                          uvalue=self, uname='tlb')
 
   ; toolbar
-  toolbar = widget_base(self.tlb, /row, uname='toolbar')
-  database_list = widget_combobox(toolbar, value=dbs, uname='databases')
-  table_list = widget_combobox(toolbar, value=tables, uname='tables')
+  space = 10.0
+  toolbar = widget_base(self.tlb, /row, uname='toolbar', /base_align_center)
+  instrument_label = widget_label(toolbar, value='Instrument:')
+  database_list = widget_combobox(toolbar, $
+                                  value=['CoMP', 'KCor'], $
+                                  uname='instrument')
+
+  spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
+
+  type_label = widget_label(toolbar, value='Type:')
+  type_base = widget_base(toolbar, xpad=0.0, ypad=0.0, /exclusive, /row)
+  images_button = widget_button(type_base, value='images', uname='images')
+  widget_control, images_button, /set_button
+  engineering_button = widget_button(type_base, value='engineering data', uname='eng')
+
+  spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
+
+  limit_label = widget_label(toolbar, value='Limit:')
+  limit_text = widget_text(toolbar, value='500', uname='limit', $
+                           scr_xsize=60.0, ysize=1, $
+                           /editable)
+
+  self.current_table = 'comp_img'
+  self.current_instrument = 'comp'
+  self.current_engineering = 0B
+
+  db_values = self->get_data()
+
 
   self.table = widget_table(self.tlb, $
                             /no_row_headers, $
                             column_labels=tag_names(db_values[0]), $
                             value=db_values, $
-                            ;column_widths=comp_dir_browser_colwidths() * table_xsize, $
                             xsize=n_tags(db_values[0]), $
                             scr_xsize=table_xsize, $
                             scr_ysize=table_ysize, $
@@ -255,6 +288,9 @@ function comp_db_browser::init, config_filename, section=section
 
   obj_destroy, config
 
+  self.current_limit = 500
+  self.current_engineering = 0B
+
   self.db = mgdbmysql()
   self.db->setProperty, mysql_secure_auth=0
   self.db->connect, config_filename=_config_filename, $
@@ -282,7 +318,10 @@ pro comp_db_browser__define
              table: 0L, $
              statusbar: 0L, $
              current_database: '', $
-             current_table: '' $
+             current_table: '', $
+             current_limit: 0L, $
+             current_instrument: '', $
+             current_engineering: 0B $
            }
 end
 
