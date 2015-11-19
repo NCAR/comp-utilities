@@ -149,11 +149,12 @@ pro comp_db_query::set_status, msg, clear=clear
 end
 
 
-function comp_db_query::get_query, root
+function comp_db_query::export, root
   compile_opt strictarr
 
   _root = n_elements(root) eq 0L ? widget_info(self.tlb, find_by_uname='root') : root
   widget_control, _root, get_value=uvalue
+  help, uvalue
   case uvalue.type of
     0: begin
         children = widget_info(_root, /all_children)
@@ -232,6 +233,10 @@ pro comp_db_query::handle_events, event
     'value': begin
         self->_set_condition_title
       end
+    'export': begin
+        print, self->export()
+        ;status = self.callback(self->export(root))
+      end
     else: begin
         if (widget_info(event.id, /type) eq 11) then begin ; 11 = tree
           self.current_tree_node = event.id
@@ -288,16 +293,23 @@ pro comp_db_query::create_widgets
   content_base = widget_base(self.tlb, xpad=0.0, ypad=0.0, space=space, /row)
 
   left_column = widget_base(content_base, xpad=0.0, ypad=0.0, /column)
-  toolbar = widget_base(left_column, /row, /toolbar)
-  add_button = widget_button(toolbar, /bitmap, uname='add', $
+
+  toolbar = widget_base(left_column, /row)
+  create_toolbar = widget_base(toolbar, /row, xpad=0.0, ypad=0.0, /toolbar)
+  add_button = widget_button(create_toolbar, /bitmap, uname='add', $
                              tooltip='Add clause', $
                              value=filepath('plus.bmp', subdir=bitmapdir))
-  minus_button = widget_button(toolbar, /bitmap, uname='remove', $
+  minus_button = widget_button(create_toolbar, /bitmap, uname='remove', $
                                tooltip='Remove clause', $
                                value=filepath('minus.bmp', subdir=bitmapdir))
-  child_button = widget_button(toolbar, /bitmap, uname='child', $
+  child_button = widget_button(create_toolbar, /bitmap, uname='child', $
                                tooltip='Add child clause', $
                                value=filepath('shift_right.bmp', subdir=bitmapdir))
+
+  file_toolbar = widget_base(toolbar, /row, xpad=0.0, ypad=0.0, /toolbar)
+  export_button = widget_button(file_toolbar, /bitmap, uname='export', $
+                                tooltip='Export query', $
+                                value=filepath('export.bmp', subdir=bitmapdir))
 
   tree = widget_tree(left_column, scr_xsize=tree_xsize, uname='tree')
   root = widget_tree(tree, value='AND', uname='root', /folder, uvalue={type:0L}, /expanded)
