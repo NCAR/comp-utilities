@@ -70,7 +70,7 @@ end
 function comp_db_query::_ops, index
   compile_opt strictarr
 
-  ops = ['>', '<', '=']
+  ops = ['<', '<=', '>', '>=', '=']
   if (n_elements(index) gt 0L) then return, ops[index]
   return, ops
 end
@@ -153,8 +153,8 @@ function comp_db_query::export, root
   compile_opt strictarr
 
   _root = n_elements(root) eq 0L ? widget_info(self.tlb, find_by_uname='root') : root
-  widget_control, _root, get_value=uvalue
-  help, uvalue
+  widget_control, _root, get_uvalue=uvalue
+
   case uvalue.type of
     0: begin
         children = widget_info(_root, /all_children)
@@ -162,9 +162,9 @@ function comp_db_query::export, root
         if (n_children lt 1L) then return, ''
         queries = strarr(n_children)
         for c = 0L, n_children - 1L do begin
-          queries[c] = self->get_query(children[c])
+          queries[c] = self->export(children[c])
         endfor
-        return, strjoin(queries, ' and ')
+        return, strjoin('(' + queries + ')', ' and ')
       end
     1: begin
         children = widget_info(_root, /all_children)
@@ -172,15 +172,177 @@ function comp_db_query::export, root
         if (n_children lt 1L) then return, ''
         queries = strarr(n_children)
         for c = 0L, n_children - 1L do begin
-          queries[c] = self->get_query(children[c])
+          queries[c] = self->export(children[c])
         endfor
-        return, strjoin(queries, ' or ')
+        return, strjoin('(' + queries + ')', ' or ')
       end
     2: begin
         return, string(uvalue.field, uvalue.op, uvalue.value, $
                        format='(%"%s %s ''%s''")')
       end
   endcase
+end
+
+
+function comp_db_query::_import_parse, query, start_index, length=length
+  compile_opt strictarr
+
+  if (start_index ge strlen(query)) then begin
+    length = 0
+    return, !null
+  endif
+
+  char = strmid(query, start_index, 1)
+  bchar = (byte(char))[0]
+
+  ; whitespace
+
+  if (char eq ' ') then begin
+    result = self->_import_parse(query, start_index + 1, length=slength)
+    length = slength + 1
+    return, result
+  endif
+
+  ; operator/symbol
+
+  ops = [self->_ops(), '(', ')']
+  ind = where(char eq ops, count)
+  if (count gt 0L) then begin
+    char2 = char + strmid(query, start_index + 1, 1)
+    ind = where(char2 eq ops, count)
+    if (count gt 0L) then begin
+      length = 2
+      return, char2
+    endif else begin
+      length = 1
+      return, char
+    endelse
+  endif
+
+  ; name
+
+  ; ASCII 48 = '0', ASCII 57 = '9', 
+  ; ASCII 65 = 'a', ASCII 90 = 'z', ASCII 97 = 'A', ASCII 122 = 'Z'
+  if (char eq '_' $
+        || (bchar ge 48 && bchar le 57) $
+        || (bchar ge 65 && bchar le 90) $
+        || (bchar ge 97 && bchar le 122)) then begin
+    i = start_index + 1
+    done = 0
+    while (i lt strlen(query) && ~done) do begin
+      char = strmid(query, i, 1)
+      bchar = (byte(char))[0]
+      done = (char eq '_' $
+                || (bchar ge 48 && bchar le 57) $
+                || (bchar ge 65 && bchar le 90) $
+                || (bchar ge 97 && bchar le 122)) eq 0
+      if (~done) then i++
+    endwhile
+    length = i - start_index
+    return, strmid(query, start_index, length)
+  endif
+
+  ; value
+
+  if (char eq '''') then begin
+    i = start_index + 1
+    done = 0
+    while (i lt strlen(query) && ~done) do begin
+      char = strmid(query, i, 1)
+      bchar = (byte(char))[0]
+      done = char eq ''''
+      if (~done) then i++
+    endwhile
+    length = i - start_index + 1
+    return, strmid(query, start_index, length)
+  endif
+end
+
+
+function comp_db_query::_import_factor, stack, pos, tree=tree
+  compile_opt strictarr
+
+  if (stack[pos] eq '(') then begin
+    pos++
+    self->_import_expr, stack, pos, tree=tree
+    if (stack[pos] eq ')') then pos++ else message, 'expecting close parenthesis'
+    return, !null
+  endif else begin
+    return, stack[pos++]
+  endelse
+end
+
+
+function comp_db_query::_import_term, stack, pos, tree=tree
+  compile_opt strictarr
+
+  fieldname = self->_import_factor(stack, pos, tree=tree)
+
+  ops = self->_ops()
+  if (pos lt stack->count()) then ind = where(stack[pos] eq ops, count)
+
+  while (pos lt stack->count() && count gt 0L) do begin
+    op = ops[ind[0]]
+    pos++
+    value = self->_import_factor(stack, pos, tree=tree)
+    return, {type:2, field:fieldname, op:op, value:value}
+    if (pos lt stack->count()) then ind = where(stack[pos] eq ops, count)
+  endwhile
+
+  return, !null
+end
+
+
+pro comp_db_query::_import_expr, stack, pos, tree=tree
+  compile_opt strictarr
+
+  uvalue = self->_import_term(stack, pos, tree=tree)
+  help, pos, uvalue
+  while (pos lt stack->count() && (stack[pos] eq 'and' || stack[pos] eq 'or')) do begin
+    conditional = strupcase(stack[pos])
+    type = conditional eq 'AND' ? 0L : 1L
+    conditional_tree = widget_tree(tree, value=conditional, uvalue={type:type}, /folder, /expanded)
+    help, pos, uvalue
+    if (n_elements(uvalue) gt 0L) then begin
+      condition_tree = widget_tree(conditional_tree, $
+                                   value=string(uvalue.field, uvalue.op, uvalue.value, $
+                                                format='(%"%s %s ''%s''")'), $
+                                   uvalue=uvalue, /folder, /expanded)
+    endif
+
+    pos++
+    uvalue = self->_import_term(stack, pos, tree=conditional_tree)
+    help, pos, uvalue
+    if (n_elements(uvalue) gt 0L) then begin
+      condition_tree = widget_tree(conditional_tree, $
+                                   value=string(uvalue.field, uvalue.op, uvalue.value, $
+                                                format='(%"%s %s ''%s''")'), $
+                                   uvalue=uvalue, /folder, /expanded)
+    endif
+  endwhile
+end
+
+
+pro comp_db_query::import, query
+  compile_opt strictarr
+
+  tree = widget_info(self.tlb, find_by_uname='tree')
+  root = widget_info(self.tlb, find_by_uname='root')
+
+  widget_control, root, /destroy
+
+  stack = list()
+  start_index = 0
+  token = self->_import_parse(query, start_index, length=length)
+  while (n_elements(token) gt 0) do begin
+    stack->add, token
+    start_index += length
+    token = self->_import_parse(query, start_index, length=length)
+  endwhile
+
+  self->_import_expr, stack, 0, tree=tree
+
+  obj_destroy, stack
 end
 
 
@@ -234,8 +396,28 @@ pro comp_db_query::handle_events, event
         self->_set_condition_title
       end
     'export': begin
-        print, self->export()
-        ;status = self.callback(self->export(root))
+        if (obj_valid(self.callback)) then begin
+          callback = self.callback   ; IDL's weird syntax requires a temp var
+          query = callback(self->export())
+        endif
+      end
+    'save': begin
+        filename = dialog_pickfile(/write, dialog_parent=self.tlb)
+        if (filename ne '') then begin
+          openw, lun, filename, /get_lun
+          printf, lun, self->export()
+          free_lun, lun
+        endif
+      end
+    'open': begin
+        filename = dialog_pickfile(/read, dialog_parent=self.tlb)
+        if (filename ne '') then begin
+          query = ''
+          openr, lun, filename, /get_lun
+          readf, lun, query
+          free_lun, lun
+          self->import, query
+        endif
       end
     else: begin
         if (widget_info(event.id, /type) eq 11) then begin ; 11 = tree
@@ -294,8 +476,8 @@ pro comp_db_query::create_widgets
 
   left_column = widget_base(content_base, xpad=0.0, ypad=0.0, /column)
 
-  toolbar = widget_base(left_column, /row)
-  create_toolbar = widget_base(toolbar, /row, xpad=0.0, ypad=0.0, /toolbar)
+  toolbar = widget_base(left_column, /row, /toolbar, space=5.0)
+  create_toolbar = widget_base(toolbar, /row, space=0.0, xpad=0.0, ypad=0.0, /toolbar)
   add_button = widget_button(create_toolbar, /bitmap, uname='add', $
                              tooltip='Add clause', $
                              value=filepath('plus.bmp', subdir=bitmapdir))
@@ -306,10 +488,16 @@ pro comp_db_query::create_widgets
                                tooltip='Add child clause', $
                                value=filepath('shift_right.bmp', subdir=bitmapdir))
 
-  file_toolbar = widget_base(toolbar, /row, xpad=0.0, ypad=0.0, /toolbar)
+  file_toolbar = widget_base(toolbar, /row, space=0.0, xpad=0.0, ypad=0.0, /toolbar)
   export_button = widget_button(file_toolbar, /bitmap, uname='export', $
                                 tooltip='Export query', $
                                 value=filepath('export.bmp', subdir=bitmapdir))
+  save_button = widget_button(file_toolbar, /bitmap, uname='save', $
+                              tooltip='Save query', $
+                              value=filepath('save.bmp', subdir=bitmapdir))
+  open_button = widget_button(file_toolbar, /bitmap, uname='open', $
+                              tooltip='Open query', $
+                              value=filepath('open.bmp', subdir=bitmapdir))
 
   tree = widget_tree(left_column, scr_xsize=tree_xsize, uname='tree')
   root = widget_tree(tree, value='AND', uname='root', /folder, uvalue={type:0L}, /expanded)
@@ -325,7 +513,7 @@ pro comp_db_query::create_widgets
                                map=0, uname='condition_base')
   fields_combobox = widget_combobox(condition_base, value=*self.fields, uname='field')
   op_combobox = widget_combobox(condition_base, value=self->_ops(), scr_xsize=50.0, uname='op')
-  value_text = widget_text(condition_base, value=' ', scr_xsize=100.0, /editable, uname='value')
+  value_text = widget_text(condition_base, value='', scr_xsize=100.0, /editable, uname='value')
 
   self.statusbar = widget_label(self.tlb, $
                                 scr_xsize=tree_xsize + space + clause_xsize + 2 * xpad, $

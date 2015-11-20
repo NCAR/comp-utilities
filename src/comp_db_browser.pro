@@ -77,31 +77,45 @@ pro comp_db_browser::_update_table, db_values
   compile_opt strictarr
 
   if (n_elements(db_values) eq 0L) then begin
-    n_blank = 10
-    widget_control, self.table, set_value=strarr(n_blank), $
+    n_columns = 10
+    n_rows = 10
+    widget_control, self.table, $
+                    set_value=strarr(n_columns), $
                     xsize=n_blank, $
-                    column_labels=strarr(n_blank)
+                    ysize=n_rows, $
+                    column_labels=strarr(n_columns)
   endif else begin
     widget_control, self.table, $
                     set_value=db_values, $
                     xsize=n_tags(db_values), $
+                    ysize=n_elements(db_values), $
                     column_labels=tag_names(db_values)
   endelse
 end
 
 
-function comp_db_browser::get_data
+function comp_db_browser::get_data, limit=limit, fields=fields
   compile_opt strictarr
 
   self->setProperty, database='MLSO'
+  _limit = n_elements(limit) gt 0L ? limit : self.current_limit
 
   case self.current_instrument of
     'comp': self.current_table = keyword_set(self.current_engineering) ? 'comp_eng' : 'comp_img'
     'kcor': self.current_table = keyword_set(self.current_engineering) ? 'kcor_eng' : 'kcor_img'
   endcase
 
-  return, self.db->query('select * from %s limit %s', $
-                         self.current_table, self.current_limit)
+  where_clause = self.current_query eq '' ? '' : ('where ' + self.current_query)
+  result = self.db->query('select * from %s %s limit %d', $
+                          self.current_table, where_clause, _limit, $
+                          sql_statement=sql_statement, error=error, fields=fields)
+  if (strlowcase(error) ne 'success') then begin
+    self->set_status, string(sql_statement, format='(%"problem with SQL statement: ''%s''")')
+  endif else begin
+    self->set_status, string(sql_statement, format='(%"using query: ''%s''")')
+  endelse
+
+  return, result
 end
 
 
@@ -148,6 +162,10 @@ pro comp_db_browser::handle_events, event
         widget_control, event.id, get_value=limit_value
         self.current_limit = long(limit_value)
         self->_update_table, self->get_data()
+      end
+    'create_query': begin
+        result = self->get_data(limit=1, fields=fields)
+        comp_db_query, fields=fields.name, callback=self
       end
     else:
   endcase
@@ -199,18 +217,19 @@ pro comp_db_browser::create_widgets
                            scr_xsize=60.0, ysize=1, $
                            /editable)
 
+  spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
+
+  query_button = widget_button(toolbar, value='query', uname='create_query')
+
   self.current_table = 'comp_img'
   self.current_instrument = 'comp'
   self.current_engineering = 0B
 
-  db_values = self->get_data()
-
-
   self.table = widget_table(self.tlb, $
                             /no_row_headers, $
-                            column_labels=tag_names(db_values[0]), $
-                            value=db_values, $
-                            xsize=n_tags(db_values[0]), $
+                            ;column_labels=tag_names(db_values[0]), $
+                            ;value=db_values, $
+                            ;xsize=n_tags(db_values[0]), $
                             scr_xsize=table_xsize, $
                             scr_ysize=table_ysize, $
                             uname='table', $
@@ -242,6 +261,18 @@ pro comp_db_browser::start_xmanager
   xmanager, 'comp_db_browser', self.tlb, /no_block, $
             event_handler='comp_db_browser_handleevents', $
             cleanup='comp_db_browser_cleanup'
+end
+
+
+;= IDL_Object methods
+
+function comp_db_browser::_overloadFunction, query
+  compile_opt strictarr
+
+  self.current_query = query
+  self->_update_table, self->get_data()
+
+  return, query
 end
 
 
@@ -304,6 +335,8 @@ function comp_db_browser::init, config_filename, section=section
 
   self->set_status, string(host, format='(%"Connected to %s...\n")')
 
+  self->_update_table, self->get_data()
+
   return, 1
 end
 
@@ -311,7 +344,7 @@ end
 pro comp_db_browser__define
   compile_opt strictarr
 
-  define = { comp_db_browser, $
+  define = { comp_db_browser, inherits IDL_Object, $
              title: '', $
              tlb: 0L, $
              db: obj_new(), $
@@ -321,7 +354,8 @@ pro comp_db_browser__define
              current_table: '', $
              current_limit: 0L, $
              current_instrument: '', $
-             current_engineering: 0B $
+             current_engineering: 0B, $
+             current_query: '' $
            }
 end
 
