@@ -602,3 +602,10 @@ pro comp_db_query, fields=fields, callback=callback
 
   query_creator = obj_new('comp_db_query', fields=fields, callback=callback)
 end
+
+
+; main-level example
+
+comp_db_query, fields=['date_obs', 'rsun', 'waveleng'], callback=obj_new()
+
+end
