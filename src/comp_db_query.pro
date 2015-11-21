@@ -259,24 +259,27 @@ function comp_db_query::_import_parse, query, start_index, length=length
 end
 
 
-function comp_db_query::_import_factor, stack, pos, tree=tree
+function comp_db_query::_import_factor, stack, pos, tree=tree, level=level
   compile_opt strictarr
+
+  print, level, pos, format='(%"%sfactor pos: %d")'
 
   if (stack[pos] eq '(') then begin
     pos++
-    self->_import_expr, stack, pos, tree=tree
+    results = self->_import_expr(stack, pos, tree=tree, level=level + '  ')
     if (stack[pos] eq ')') then pos++ else message, 'expecting close parenthesis'
-    return, !null
+    return, results
   endif else begin
     return, stack[pos++]
   endelse
 end
 
 
-function comp_db_query::_import_term, stack, pos, tree=tree
+function comp_db_query::_import_term, stack, pos, tree=tree, level=level
   compile_opt strictarr
 
-  fieldname = self->_import_factor(stack, pos, tree=tree)
+  print, level, pos, format='(%"%sterm pos: %d")'
+  factor = self->_import_factor(stack, pos, tree=tree, level=level + '  ')
 
   ops = self->_ops()
   if (pos lt stack->count()) then ind = where(stack[pos] eq ops, count)
@@ -284,42 +287,46 @@ function comp_db_query::_import_term, stack, pos, tree=tree
   while (pos lt stack->count() && count gt 0L) do begin
     op = ops[ind[0]]
     pos++
-    value = self->_import_factor(stack, pos, tree=tree)
-    return, {type:2, field:fieldname, op:op, value:value}
+    print, level, pos, format='(%"%sterm pos: %d")'
+    value = self->_import_factor(stack, pos, tree=tree, level=level + '  ')
+    term = {type:2, field:factor, op:op, value:value}
+    help, term
+    return, term
     if (pos lt stack->count()) then ind = where(stack[pos] eq ops, count)
   endwhile
 
-  return, !null
+  print, level, format='(%"%sreturning factor")'
+  help, factor
+  return, factor
 end
 
 
-pro comp_db_query::_import_expr, stack, pos, tree=tree
+function comp_db_query::_import_expr, stack, pos, tree=tree, level=level
   compile_opt strictarr
 
-  uvalue = self->_import_term(stack, pos, tree=tree)
-  help, pos, uvalue
+  print, level, pos, format='(%"%sexpr pos: %d")'
+  tree_uname = widget_info(tree, /uname)
+  uvalue = self->_import_term(stack, pos, tree=tree, level=level + '  ')
+  children = list()
+  if (n_elements(uvalue) gt 0L) then children->add, uvalue
   while (pos lt stack->count() && (stack[pos] eq 'and' || stack[pos] eq 'or')) do begin
     conditional = strupcase(stack[pos])
+    print, level, pos, conditional, format='(%"%sexpr pos: %d, conditional: %s")'
     type = conditional eq 'AND' ? 0L : 1L
-    conditional_tree = widget_tree(tree, value=conditional, uvalue={type:type}, /folder, /expanded)
-    help, pos, uvalue
-    if (n_elements(uvalue) gt 0L) then begin
-      condition_tree = widget_tree(conditional_tree, $
-                                   value=string(uvalue.field, uvalue.op, uvalue.value, $
-                                                format='(%"%s %s ''%s''")'), $
-                                   uvalue=uvalue, /folder, /expanded)
-    endif
 
     pos++
-    uvalue = self->_import_term(stack, pos, tree=conditional_tree)
-    help, pos, uvalue
-    if (n_elements(uvalue) gt 0L) then begin
-      condition_tree = widget_tree(conditional_tree, $
-                                   value=string(uvalue.field, uvalue.op, uvalue.value, $
-                                                format='(%"%s %s ''%s''")'), $
-                                   uvalue=uvalue, /folder, /expanded)
-    endif
+    print, level, pos, format='(%"%sexpr pos: %d")'
+    uvalue = self->_import_term(stack, pos, tree=tree, level=level + '  ')
+    if (n_elements(uvalue) gt 0L) then children->add, uvalue
   endwhile
+
+  if (n_elements(conditional) gt 0L && children->count() gt 0L) then begin
+    results = {type:type, children:children->toArray()}
+  endif else results = !null
+
+  obj_destroy, children
+
+  return, results
 end
 
 
@@ -340,7 +347,12 @@ pro comp_db_query::import, query
     token = self->_import_parse(query, start_index, length=length)
   endwhile
 
-  self->_import_expr, stack, 0, tree=tree
+  print, stack
+
+  level = ''
+  results = self->_import_expr(stack, 0, tree=tree, level=level)
+
+  help, results
 
   obj_destroy, stack
 end
