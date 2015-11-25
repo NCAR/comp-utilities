@@ -73,15 +73,100 @@ pro comp_db_plot::set_status, msg, clear=clear
 end
 
 
+function comp_db_plot::_date2jd, d
+  compile_opt strictarr
+
+  year   = long(strmid(d, 0, 4))
+  month  = long(strmid(d, 5, 2))
+  day    = long(strmid(d, 8, 2))
+  hour   = long(strmid(d, 11, 2))
+  minute = long(strmid(d, 14, 2))
+  second = long(strmid(d, 17, 2))
+
+  bad_years_ind = where(year eq 0, count)
+  year[bad_years_ind] = 1
+
+  jd = julday(month, day, year, hour, minute, second)
+
+  jd[bad_years_ind] = !values.f_nan
+
+  return, jd
+end
+
+
+pro comp_db_plot::_axis, t, info, data=data, tickformat=tickformat, tickunits=tickunits
+  compile_opt strictarr
+
+  if (info.type eq 12) then begin
+    data = self->_date2jd(t)
+
+    ; use appropriate date/time format for time interval
+    diff = data[-1] - data[0]
+    if (diff lt 1.0) then begin
+      date_label = label_date(date_format=['%Y-%N-%D %H:%I']) 
+    endif else begin
+      date_label = label_date(date_format=['%Y-%N-%D']) 
+    endelse
+
+    tickformat = 'LABEL_DATE'
+    tickunits = 'Time'
+  endif else begin
+    data = t
+    tickunits = 'Numeric'
+  endelse
+end
+
+
+pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear
+  compile_opt strictarr
+
+  old_window = !d.window
+  wset, self.draw_id
+  device, get_decomposed=odec
+  device, decomposed=1
+
+  if (keyword_set(clear)) then begin
+    erase, '000000'x
+  endif else begin
+    self->_axis, x, xinfo, data=_x, tickformat=xtickformat, tickunits=xtickunits
+    self->_axis, y, yinfo, data=_y, tickformat=ytickformat, tickunits=ytickunits
+    plot, _x, _y, $
+          xstyle=9, ystyle=8, $
+          xtitle=xinfo.name, $
+          ytitle=yinfo.name, $
+          xtickformat=xtickformat, $
+          xtickunits=xtickunits, $
+          ytickformat=ytickformat, $
+          ytickunits=ytickunits
+  endelse
+
+  device, decomposed=odec
+  wset, old_window
+end
+
+
 pro comp_db_plot::redraw
   compile_opt strictarr
 
   x = (*self.data).(self.current_xaxis)
   y = (*self.data).(self.current_yaxis)
-  old_window = !d.window
-  wset, self.draw_id
-  plot, x, y
-  wset, old_window
+
+  xinfo = (*self.fields)[self.current_xaxis]
+  yinfo = (*self.fields)[self.current_yaxis]
+
+  if (xinfo.type eq 253 || xinfo.type eq 254) then begin
+    self->set_status, 'ERROR: cannot plot string x-values'
+    self->_draw, /clear
+    return
+  endif
+
+  if (yinfo.type eq 253 || yinfo.type eq 254) then begin
+    self->set_status, 'ERROR: cannot plot string y-values'
+    self->_draw, /clear
+    return
+  endif
+
+  self->_draw, x, y, xinfo, yinfo
 end
 
 
@@ -93,6 +178,19 @@ pro comp_db_plot::handle_events, event
   uname = widget_info(event.id, /uname)
   case uname of
     'tlb': begin
+        tlb_geometry = widget_info(self.tlb, /geometry)
+        toolbar = widget_info(self.tlb, find_by_uname='toolbar')
+        toolbar_geometry = widget_info(toolbar, /geometry)
+        statusbar_geometry = widget_info(self.statusbar, /geometry)
+
+        draw_xsize = event.x - 2 * tlb_geometry.xpad
+        draw_ysize = event.y - 2 * tlb_geometry.ypad - 2 * tlb_geometry.space $
+                       - toolbar_geometry.scr_ysize $
+                       - statusbar_geometry.scr_ysize
+        widget_control, self.draw, scr_xsize=draw_xsize, $
+                                   scr_ysize=draw_ysize 
+        widget_control, self.statusbar, scr_xsize=draw_xize
+
         self->redraw
       end
     'xaxis': begin
@@ -102,6 +200,8 @@ pro comp_db_plot::handle_events, event
     'yaxis': begin
         self.current_yaxis = event.index
         self->redraw
+      end
+    'save': begin
       end
     else:
   endcase
@@ -125,7 +225,7 @@ pro comp_db_plot::create_widgets
 
   draw_xsize = 600.0
   draw_ysize = 300.0
-  xpad = 2.0
+  xpad = 1.0
 
   bitmapdir = ['resource', 'bitmaps']
 
@@ -133,13 +233,20 @@ pro comp_db_plot::create_widgets
                          uvalue=self, uname='tlb', xpad=xpad)
 
   toolbar = widget_base(self.tlb, /row, uname='toolbar', $
-                        /base_align_center, space=0.0)
-  xaxis_label = widget_label(toolbar, value='X-axis:')
-  xaxis_list = widget_combobox(toolbar, $
+                        /base_align_center, space=10.0)
+
+  save_button = widget_button(toolbar, /bitmap, uname='save', $
+                              tooltip='Save', $
+                              value=filepath('save.bmp', subdir=bitmapdir))
+
+  xaxis_base = widget_base(toolbar, xpad=0.0, ypad=0.0, space=0.0, /row)
+  xaxis_label = widget_label(xaxis_base, value='X-axis:')
+  xaxis_list = widget_combobox(xaxis_base, $
                                value=(*self.fields).name, $
                                uname='xaxis')
-  yaxis_label = widget_label(toolbar, value='Y-axis:')
-  yaxis_list = widget_combobox(toolbar, $
+  yaxis_base = widget_base(toolbar, xpad=0.0, ypad=0.0, space=0.0, /row)
+  yaxis_label = widget_label(yaxis_base, value='Y-axis:')
+  yaxis_list = widget_combobox(yaxis_base, $
                                value=(*self.fields).name, $
                                uname='yaxis')
 
