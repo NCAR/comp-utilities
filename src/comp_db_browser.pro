@@ -109,6 +109,7 @@ function comp_db_browser::get_data, limit=limit, fields=fields
   result = self.db->query('select * from %s %s limit %d', $
                           self.current_table, where_clause, _limit, $
                           sql_statement=sql_statement, error=error, fields=fields)
+  *self.fields = fields
   if (strlowcase(error) ne 'success') then begin
     self->set_status, string(sql_statement, format='(%"problem with SQL statement: ''%s''")')
   endif else begin
@@ -167,6 +168,10 @@ pro comp_db_browser::handle_events, event
         result = self->get_data(limit=1, fields=fields)
         comp_db_query, fields=fields.name, callback=self
       end
+    'plot': begin
+        widget_control, self.table, get_value=data
+        comp_db_plot, fields=*self.fields, data=data
+      end
     else:
   endcase
 end
@@ -195,8 +200,10 @@ pro comp_db_browser::create_widgets
                          uvalue=self, uname='tlb')
 
   ; toolbar
+  bitmapdir = ['resource', 'bitmaps']
   space = 10.0
-  toolbar = widget_base(self.tlb, /row, uname='toolbar', /base_align_center)
+  toolbar = widget_base(self.tlb, /row, uname='toolbar', $
+                        /base_align_center, space=0.0)
   instrument_label = widget_label(toolbar, value='Instrument:')
   database_list = widget_combobox(toolbar, $
                                   value=['CoMP', 'KCor'], $
@@ -219,7 +226,12 @@ pro comp_db_browser::create_widgets
 
   spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
 
-  query_button = widget_button(toolbar, value='query', uname='create_query')
+  query_button = widget_button(toolbar, /bitmap, uname='create_query', $
+                              tooltip='Create query', $
+                              value=filepath('find.bmp', subdir=bitmapdir))
+  plot_button = widget_button(toolbar, /bitmap, uname='plot', $
+                              tooltip='Plot', $
+                              value=filepath('plot.bmp', subdir=bitmapdir))
 
   self.current_table = 'comp_img'
   self.current_instrument = 'comp'
@@ -299,6 +311,7 @@ pro comp_db_browser::cleanup
   compile_opt strictarr
 
   obj_destroy, self.db
+  ptr_free, self.fields
 end
 
 
@@ -319,6 +332,7 @@ function comp_db_browser::init, config_filename, section=section
 
   obj_destroy, config
 
+  self.fields = ptr_new(/allocate_heap)
   self.current_limit = 500
   self.current_engineering = 0B
 
@@ -348,6 +362,7 @@ pro comp_db_browser__define
              title: '', $
              tlb: 0L, $
              db: obj_new(), $
+             fields: ptr_new(), $
              table: 0L, $
              statusbar: 0L, $
              current_database: '', $
