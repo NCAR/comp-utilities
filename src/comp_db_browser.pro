@@ -109,10 +109,11 @@ function comp_db_browser::get_data, limit=limit, fields=fields
   result = self.db->query('select * from %s %s limit %d', $
                           self.current_table, where_clause, _limit, $
                           sql_statement=sql_statement, error=error, fields=fields)
-  *self.fields = fields
+
   if (strlowcase(error) ne 'success') then begin
     self->set_status, string(sql_statement, format='(%"problem with SQL statement: ''%s''")')
   endif else begin
+    *self.fields = fields
     self->set_status, string(sql_statement, format='(%"using query: ''%s''")')
   endelse
 
