@@ -119,7 +119,9 @@ function comp_db_browser::get_data, limit=limit, fields=fields
     self->set_status, string(sql_statement, format='(%"problem with SQL statement: ''%s''")')
   endif else begin
     *self.fields = fields
-    self->set_status, string(sql_statement, format='(%"using query: ''%s''")')
+    self->set_status, string(n_elements(result), $
+                             sql_statement, $
+                             format='(%"%d results for query: ''%s''")')
   endelse
 
   return, result

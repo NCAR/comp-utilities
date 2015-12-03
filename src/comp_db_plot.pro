@@ -83,12 +83,16 @@ function comp_db_plot::_date2jd, d
   minute = long(strmid(d, 14, 2))
   second = long(strmid(d, 17, 2))
 
-  bad_years_ind = where(year eq 0, count)
-  year[bad_years_ind] = 1
+  bad_years_ind = where(year eq 0, n_bad_years)
+  if (n_bad_years gt 0L) then begin
+    year[bad_years_ind] = 1
+  endif
 
   jd = julday(month, day, year, hour, minute, second)
 
-  jd[bad_years_ind] = !values.f_nan
+  if (n_bad_years gt 0L) then begin
+    jd[bad_years_ind] = !values.f_nan
+  endif
 
   return, jd
 end
@@ -101,13 +105,18 @@ pro comp_db_plot::_axis, t, info, data=data, tickformat=tickformat, tickunits=ti
     data = self->_date2jd(t)
 
     ; use appropriate date/time format for time interval
-    diff = data[-1] - data[0]
-    if (diff lt 1.0) then begin
-      date_label = label_date(date_format=['%Y-%N-%D %H:%I']) 
+    finite_ind = where(finite(data), count)
+    if (count lt 2L) then begin
+      date_label = label_date(date_format=['%Y-%N-%D %H:%I'])
     endif else begin
-      date_label = label_date(date_format=['%Y-%N-%D']) 
-    endelse
+      diff = data[finite_ind[-1]] - data[finite_ind[0]]
 
+      if (diff lt 1.0) then begin
+        date_label = label_date(date_format=['%Y-%N-%D %H:%I']) 
+      endif else begin
+        date_label = label_date(date_format=['%Y-%N-%D']) 
+      endelse
+    endelse
     tickformat = 'LABEL_DATE'
     tickunits = 'Time'
   endif else begin
@@ -137,7 +146,8 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear
           xtickformat=xtickformat, $
           xtickunits=xtickunits, $
           ytickformat=ytickformat, $
-          ytickunits=ytickunits
+          ytickunits=ytickunits, $
+          psym=3
   endelse
 
   device, decomposed=odec
