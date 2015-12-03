@@ -97,13 +97,18 @@ end
 function comp_db_browser::get_data, limit=limit, fields=fields
   compile_opt strictarr
 
-  self->setProperty, database='MLSO'
+  self.db->getProperty, connected=connected
+  if (~connected) then return, !null
+
+  self.db->setProperty, database='MLSO'
+
   _limit = n_elements(limit) gt 0L ? limit : self.current_limit
 
   case self.current_instrument of
     'comp': self.current_table = keyword_set(self.current_engineering) ? 'comp_eng' : 'comp_img'
     'kcor': self.current_table = keyword_set(self.current_engineering) ? 'kcor_eng' : 'kcor_img'
   endcase
+
 
   where_clause = self.current_query eq '' ? '' : ('where ' + self.current_query)
   result = self.db->query('select * from %s %s limit %d', $
@@ -167,11 +172,15 @@ pro comp_db_browser::handle_events, event
       end
     'create_query': begin
         result = self->get_data(limit=1, fields=fields)
-        comp_db_query, fields=fields.name, callback=self
+        if (n_elements(result) gt 0L) then begin
+          comp_db_query, fields=fields.name, callback=self
+        endif
       end
     'plot': begin
         widget_control, self.table, get_value=data
-        comp_db_plot, fields=*self.fields, data=data
+        if (n_elements(*self.fields) gt 0L) then begin
+          comp_db_plot, fields=*self.fields, data=data
+        endif
       end
     else:
   endcase
@@ -339,16 +348,21 @@ function comp_db_browser::init, config_filename, section=section
 
   self.db = mgdbmysql()
   self.db->setProperty, mysql_secure_auth=0
+
   self.db->connect, config_filename=_config_filename, $
                     config_section=_section, $
                     error_message=error_message
-  self.db->getProperty, host_name=host
+
+  self.db->getProperty, host_name=host, connected=connected
 
   self->create_widgets
   self->realize_widgets
   self->start_xmanager
 
-  self->set_status, string(host, format='(%"Connected to %s...\n")')
+  msg = connected $
+          ? string(host, format='(%"Connected to %s...\n")') $
+          : string(error_message, format='(%"Error connecting to database: %s")')
+  self->set_status, msg
 
   self->_update_table, self->get_data()
 

@@ -36,9 +36,10 @@ end
 ;+
 ; Filter the cidx log by the current log level and display the correct text.
 ;-
-pro comp_log_browser::_filter
+pro comp_log_browser::_filter, n_lines=n_lines
   compile_opt strictarr
 
+  n_lines = 0L
   if (n_elements(*self.cidx_logtext) eq 0L) then return
 
   date = '[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}'
@@ -58,8 +59,8 @@ pro comp_log_browser::_filter
     1: mask or= levels eq 'CRITICAL'
   endswitch
 
-  ind = where(mask, count)
-  if (count gt 0L) then begin
+  ind = where(mask, n_lines)
+  if (n_lines gt 0L) then begin
     filtered_text = (*self.cidx_logtext)[ind]
   endif else filtered_text = ''
   widget_control, self.cidx_text, set_value=filtered_text
@@ -85,6 +86,26 @@ function comp_log_browser::_load_text_file, filename
   free_lun, lun
 
   return, text
+end
+
+
+function comp_log_browser::_cidx_changed
+  compile_opt strictarr
+
+  if (self.cidx_log_filename eq '') then return, 0B
+
+  openr, lun, self.cidx_log_filename, /get_lun
+  info = fstat(lun)
+  free_lun, lun
+
+  return, (systime(/seconds) - info.mtime) lt self.timer_interval
+end
+
+
+pro comp_log_browser::reload_cidx
+  compile_opt strictarr
+
+  *self.cidx_logtext = self->_load_text_file(self.cidx_log_filename)
 end
 
 
@@ -190,7 +211,7 @@ pro comp_log_browser::handle_events, event
   uname = widget_info(event.id, /uname)
   case uname of
     'tlb': begin
-        ; TODO: implement resizing
+        ; implement resizing
         toolbar = widget_info(self.tlb, find_by_uname='toolbar')
 
         tlb_geometry = widget_info(self.tlb, /geometry)
@@ -216,17 +237,33 @@ pro comp_log_browser::handle_events, event
         widget_control, self.tlb, update=1
       end
     'timer': begin
-        ; TODO: refresh contents of cidx log viewing
         ; TODO: refresh list of available dates
+
+        ; only refresh if changed
+        has_changed = self->_cidx_changed()
+        if (has_changed) then begin
+          ; determine if at the bottom of the file
+          cidx_text = widget_info(self.tlb, find_by_uname='cidx')
+          cidx_geometry = widget_info(cidx_text, /geometry)
+          top_line = widget_info(cidx_text, /text_top_line)
+          widget_control, self.cidx_text, get_value=current_text
+          at_bottom = top_line + cidx_geometry.ysize gt n_elements(current_text)
+
+          ; refresh contents of cidx log viewing
+          self->reload_cidx
+          self->_filter, n_lines=n_lines
+          top_line = at_bottom ? (n_lines - cidx_geometry.ysize + 1L) : top_line
+          widget_control, cidx_text, set_text_top_line=top_line
+        endif
 
         ; reset timer
         widget_control, event.id, timer=self.timer_interval
       end
     'list': begin
         date = (*self.dates)[event.index]
-        cidx_log_filename = filepath(date + '.log', subdir='cidx', root=self.log_dir)
+        self.cidx_log_filename = filepath(date + '.log', subdir='cidx', root=self.log_dir)
 
-        *self.cidx_logtext = self->_load_text_file(cidx_log_filename)
+        self->reload_cidx
 
         ; load observer log, if possible
         if (self.obs_log_dir ne '') then begin
@@ -241,16 +278,31 @@ pro comp_log_browser::handle_events, event
           widget_control, self.obs_text, $
                           set_value=self->_load_text_file(obs_log_filename)
         endif else self->set_status, 'No observer logs found'
+
+        self->_filter
       end
-    'filter_debug': self.log_level = 5
-    'filter_info': self.log_level = 4
-    'filter_warning': self.log_level = 3
-    'filter_error': self.log_level = 2
-    'filter_critical': self.log_level = 1
+    'filter_debug': begin
+        self.log_level = 5
+        self->_filter
+      end
+    'filter_info': begin
+        self.log_level = 4
+        self->_filter
+      end
+    'filter_warning': begin
+        self.log_level = 3
+        self->_filter
+      end
+    'filter_error': begin
+        self.log_level = 2
+        self->_filter
+      end
+    'filter_critical': begin
+        self.log_level = 1
+        self->_filter
+      end
     else:
   endcase
-
-  self->_filter
 end
 
 
@@ -393,6 +445,7 @@ pro comp_log_browser__define
              title: '', $
              timer_interval: 0.0, $
              log_level: 0, $
+             cidx_log_filename: '', $
              cidx_logtext: ptr_new() $
            }
 end
