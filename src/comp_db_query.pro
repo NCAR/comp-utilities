@@ -259,74 +259,127 @@ function comp_db_query::_import_parse, query, start_index, length=length
 end
 
 
-function comp_db_query::_import_factor, stack, pos, tree=tree, level=level
+; function comp_db_query::_import_item, stack, pos, tree=tree, level=level
+;   compile_opt strictarr
+;
+;   print, level, pos, format='(%"%sfactor pos: %d")'
+;
+;   if (stack[pos] eq '(') then begin
+;     pos++
+;     results = self->_import_expr(stack, pos, tree=tree, level=level + '  ')
+;     if (stack[pos] eq ')') then pos++ else message, 'expecting close parenthesis'
+;     return, results
+;   endif else begin
+;     return, stack[pos++]
+;   endelse
+; end
+;
+;
+; function comp_db_query::_import_condition, stack, pos, tree=tree, level=level
+;   compile_opt strictarr
+;
+;   print, level, pos, format='(%"%sterm pos: %d")'
+;   field = self->_import_item(stack, pos, tree=tree, level=level + '  ')
+;
+;   if (size(field, /type) eq 7) then begin
+;     ops = self->_ops()
+;     if (pos lt stack->count()) then begin
+;       ind = where(stack[pos++] eq ops, count)
+;       if (count eq 0) then message, 'expecting operator'
+;       op = ops[ind[0]]
+;       value = self->_import_item(stack, pos, tree=tree, level=level + '  ')
+;       condition = {type:2, field:field, op:op, value:value}
+;       return, condition
+;     endif else return, field
+;   endif else return, field
+; end
+;
+;
+; function comp_db_query::_import_expr, stack, pos, tree=tree, level=level
+;   compile_opt strictarr
+;
+;   print, level, pos, format='(%"%sexpr pos: %d")'
+;   tree_uname = widget_info(tree, /uname)
+;   uvalue = self->_import_condition(stack, pos, tree=tree, level=level + '  ')
+;   help, uvalue
+;   children = list()
+;   if (n_elements(uvalue) gt 0L) then children->add, uvalue
+;   while (pos lt stack->count() && (stack[pos] eq 'and' || stack[pos] eq 'or')) do begin
+;     conditional = strupcase(stack[pos])
+;     print, level, pos, conditional, format='(%"%sexpr pos: %d, conditional: %s")'
+;     type = conditional eq 'AND' ? 0L : 1L
+;
+;     pos++
+;     print, level, pos, format='(%"%sexpr pos: %d")'
+;     uvalue = self->_import_condition(stack, pos, tree=tree, level=level + '  ')
+;     if (n_elements(uvalue) gt 0L) then children->add, uvalue
+;   endwhile
+;
+;   if (n_elements(conditional) gt 0L && children->count() gt 0L) then begin
+;     results = {type:type, children:children->toArray()}
+;   endif else results = !null
+;
+;   obj_destroy, children
+;
+;   return, results
+; end
+
+function comp_db_query::_import_condition, stack, pos, level=level
   compile_opt strictarr
 
-  print, level, pos, format='(%"%sfactor pos: %d")'
+  field = stack[pos++]
+  ops = self->_ops()
+  ind = where(stack[pos++] eq ops, count)
+  if (count eq 0) then message, 'expecting operator'
+  op = ops[ind[0]]
+  value = stack[pos++]
+  value = strmid(value, 1, strlen(value) - 2)
+  condition = {type:2, field:field, op:op, value:value}
+  return, condition
+end
+
+function comp_db_query::_import_expr, stack, pos, level=level
+  compile_opt strictarr
 
   if (stack[pos] eq '(') then begin
-    pos++
-    results = self->_import_expr(stack, pos, tree=tree, level=level + '  ')
-    if (stack[pos] eq ')') then pos++ else message, 'expecting close parenthesis'
-    return, results
+    type = ''
+    expressions = list()
+
+    done = 0B
+    while (~done) do begin
+      pos++   ; consume (
+      expr = self->_import_expr(stack, pos, level=level + '  ')
+      expressions->add, expr
+
+      if (stack[pos] ne ')') then message, 'expected close parenthesis'
+      pos++   ; consume )
+
+      done = pos ge stack->count() || (stack[pos] ne 'and' && stack[pos] ne 'or')
+      if (~done) then type = stack[pos++]   ; TODO: check to make sure type is consistent
+    endwhile
+
+    return, {type: type eq 'and' ? 0L : 1L, expressions: expressions}
   endif else begin
-    return, stack[pos++]
+    return, self->_import_condition(stack, pos, level=level + '  ')
   endelse
 end
 
 
-function comp_db_query::_import_term, stack, pos, tree=tree, level=level
+pro comp_db_query::_import_results, results, tree=tree
   compile_opt strictarr
 
-  print, level, pos, format='(%"%sterm pos: %d")'
-  factor = self->_import_factor(stack, pos, tree=tree, level=level + '  ')
-
-  ops = self->_ops()
-  if (pos lt stack->count()) then ind = where(stack[pos] eq ops, count)
-
-  while (pos lt stack->count() && count gt 0L) do begin
-    op = ops[ind[0]]
-    pos++
-    print, level, pos, format='(%"%sterm pos: %d")'
-    value = self->_import_factor(stack, pos, tree=tree, level=level + '  ')
-    term = {type:2, field:factor, op:op, value:value}
-    help, term
-    return, term
-    if (pos lt stack->count()) then ind = where(stack[pos] eq ops, count)
-  endwhile
-
-  print, level, format='(%"%sreturning factor")'
-  help, factor
-  return, factor
-end
-
-
-function comp_db_query::_import_expr, stack, pos, tree=tree, level=level
-  compile_opt strictarr
-
-  print, level, pos, format='(%"%sexpr pos: %d")'
-  tree_uname = widget_info(tree, /uname)
-  uvalue = self->_import_term(stack, pos, tree=tree, level=level + '  ')
-  children = list()
-  if (n_elements(uvalue) gt 0L) then children->add, uvalue
-  while (pos lt stack->count() && (stack[pos] eq 'and' || stack[pos] eq 'or')) do begin
-    conditional = strupcase(stack[pos])
-    print, level, pos, conditional, format='(%"%sexpr pos: %d, conditional: %s")'
-    type = conditional eq 'AND' ? 0L : 1L
-
-    pos++
-    print, level, pos, format='(%"%sexpr pos: %d")'
-    uvalue = self->_import_term(stack, pos, tree=tree, level=level + '  ')
-    if (n_elements(uvalue) gt 0L) then children->add, uvalue
-  endwhile
-
-  if (n_elements(conditional) gt 0L && children->count() gt 0L) then begin
-    results = {type:type, children:children->toArray()}
-  endif else results = !null
-
-  obj_destroy, children
-
-  return, results
+  if (results.type eq 2L) then begin
+    value = string(results.field, results.op, results.value, format='(%"%s %s ''%s''")')
+    node = widget_tree(tree, value=value, uvalue=results, /folder)
+  endif else begin
+    parent = widget_tree(tree, $
+                         value=results.type eq 0 ? 'AND' : 'OR', $
+                         uvalue={type: results.type}, $
+                         /folder)
+    foreach e, results.expressions do begin
+      self->_import_results, e, tree=parent
+    endforeach
+  endelse
 end
 
 
@@ -350,9 +403,8 @@ pro comp_db_query::import, query
   print, stack
 
   level = ''
-  results = self->_import_expr(stack, 0, tree=tree, level=level)
-
-  help, results
+  results = self->_import_expr(stack, 0, level=level)
+  self->_import_results, results, tree=tree
 
   obj_destroy, stack
 end
