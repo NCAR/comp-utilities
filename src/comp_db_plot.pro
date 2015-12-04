@@ -126,11 +126,18 @@ pro comp_db_plot::_axis, t, info, data=data, tickformat=tickformat, tickunits=ti
 end
 
 
-pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear
+pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
   compile_opt strictarr
 
-  old_window = !d.window
-  wset, self.draw_id
+  if (n_elements(filename) gt 0L) then begin
+    original_device = !d.name
+    set_plot, 'ps'
+    device, filename=filename
+  endif else begin
+    old_window = !d.window
+    wset, self.draw_id
+  endelse
+
   device, get_decomposed=odec
   device, decomposed=1
 
@@ -151,11 +158,16 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear
   endelse
 
   device, decomposed=odec
-  wset, old_window
+  if (n_elements(filename) gt 0L) then begin
+    device, /close_file
+    set_plot, original_device
+  endif else begin
+    wset, old_window
+  endelse
 end
 
 
-pro comp_db_plot::redraw
+pro comp_db_plot::redraw, filename=filename
   compile_opt strictarr
 
   x = (*self.data).(self.current_xaxis)
@@ -176,7 +188,7 @@ pro comp_db_plot::redraw
     return
   endif
 
-  self->_draw, x, y, xinfo, yinfo
+  self->_draw, x, y, xinfo, yinfo, filename=filename
 end
 
 
@@ -212,6 +224,11 @@ pro comp_db_plot::handle_events, event
         self->redraw
       end
     'save': begin
+        filename = dialog_pickfile(/write, dialog_parent=self.tlb)
+        if (filename ne '') then begin
+          self->redraw, filename=filename
+          self->set_status, 'Plot created in ' + filename
+        endif
       end
     else:
   endcase

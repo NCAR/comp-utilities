@@ -110,8 +110,8 @@ function comp_db_browser::get_data, limit=limit, fields=fields
   endcase
 
 
-  where_clause = self.current_query eq '' ? '' : ('where ' + self.current_query)
-  result = self.db->query('select * from %s %s limit %d', $
+  where_clause = self.current_query eq '' ? '' : (' where ' + self.current_query)
+  result = self.db->query('select * from %s%s limit %d', $
                           self.current_table, where_clause, _limit, $
                           sql_statement=sql_statement, error=error, fields=fields)
 
@@ -157,14 +157,17 @@ pro comp_db_browser::handle_events, event
       end
     'instrument': begin
         self.current_instrument = strlowcase(event.str)
+        self.current_query = ''
         self->_update_table, self->get_data()
       end
     'eng': begin
         self.current_engineering = 1B
+        self.current_query = ''
         self->_update_table, self->get_data()
       end
     'images': begin
         self.current_engineering = 0B
+        self.current_query = ''
         self->_update_table, self->get_data()
       end
     'limit': begin
@@ -177,6 +180,10 @@ pro comp_db_browser::handle_events, event
         if (n_elements(result) gt 0L) then begin
           comp_db_query, fields=fields.name, callback=self
         endif
+      end
+    'clear_query': begin
+        self.current_query = ''
+        self->_update_table, self->get_data()
       end
     'plot': begin
         widget_control, self.table, get_value=data
@@ -241,6 +248,9 @@ pro comp_db_browser::create_widgets
   query_button = widget_button(toolbar, /bitmap, uname='create_query', $
                               tooltip='Create query', $
                               value=filepath('find.bmp', subdir=bitmapdir))
+  clear_query_button = widget_button(toolbar, /bitmap, uname='clear_query', $
+                              tooltip='Clear query', $
+                              value=filepath('delete.bmp', subdir=bitmapdir))
   plot_button = widget_button(toolbar, /bitmap, uname='plot', $
                               tooltip='Plot', $
                               value=filepath('plot.bmp', subdir=bitmapdir))
