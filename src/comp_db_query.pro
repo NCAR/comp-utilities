@@ -67,6 +67,30 @@ pro comp_db_query::_set_tree_buttons
 end
 
 
+pro comp_db_query::_set_type_controls, uvalue
+  compile_opt strictarr
+
+  case uvalue.type of
+    0: b_uname = 'and'
+    1: b_uname = 'or'
+    2: b_uname = 'condition'
+  endcase
+  widget_control, widget_info(self.tlb, find_by_uname=b_uname), /set_button
+  condition_base = widget_info(self.tlb, find_by_uname='condition_base')
+  widget_control, condition_base, map=uvalue.type eq 2
+
+  if (uvalue.type eq 2) then begin
+    field_combobox = widget_info(self.tlb, find_by_uname='field')
+    op_combobox = widget_info(self.tlb, find_by_uname='op')
+    value_text = widget_info(self.tlb, find_by_uname='value')
+
+    widget_control, field_combobox, set_combobox_select=self->_get_field_index(uvalue.field)
+    widget_control, op_combobox, set_combobox_select=self->_get_op_index(uvalue.op)
+    widget_control, value_text, set_value=uvalue.value
+  endif
+end
+
+
 function comp_db_query::_ops, index
   compile_opt strictarr
 
@@ -259,71 +283,6 @@ function comp_db_query::_import_parse, query, start_index, length=length
 end
 
 
-; function comp_db_query::_import_item, stack, pos, tree=tree, level=level
-;   compile_opt strictarr
-;
-;   print, level, pos, format='(%"%sfactor pos: %d")'
-;
-;   if (stack[pos] eq '(') then begin
-;     pos++
-;     results = self->_import_expr(stack, pos, tree=tree, level=level + '  ')
-;     if (stack[pos] eq ')') then pos++ else message, 'expecting close parenthesis'
-;     return, results
-;   endif else begin
-;     return, stack[pos++]
-;   endelse
-; end
-;
-;
-; function comp_db_query::_import_condition, stack, pos, tree=tree, level=level
-;   compile_opt strictarr
-;
-;   print, level, pos, format='(%"%sterm pos: %d")'
-;   field = self->_import_item(stack, pos, tree=tree, level=level + '  ')
-;
-;   if (size(field, /type) eq 7) then begin
-;     ops = self->_ops()
-;     if (pos lt stack->count()) then begin
-;       ind = where(stack[pos++] eq ops, count)
-;       if (count eq 0) then message, 'expecting operator'
-;       op = ops[ind[0]]
-;       value = self->_import_item(stack, pos, tree=tree, level=level + '  ')
-;       condition = {type:2, field:field, op:op, value:value}
-;       return, condition
-;     endif else return, field
-;   endif else return, field
-; end
-;
-;
-; function comp_db_query::_import_expr, stack, pos, tree=tree, level=level
-;   compile_opt strictarr
-;
-;   print, level, pos, format='(%"%sexpr pos: %d")'
-;   tree_uname = widget_info(tree, /uname)
-;   uvalue = self->_import_condition(stack, pos, tree=tree, level=level + '  ')
-;   help, uvalue
-;   children = list()
-;   if (n_elements(uvalue) gt 0L) then children->add, uvalue
-;   while (pos lt stack->count() && (stack[pos] eq 'and' || stack[pos] eq 'or')) do begin
-;     conditional = strupcase(stack[pos])
-;     print, level, pos, conditional, format='(%"%sexpr pos: %d, conditional: %s")'
-;     type = conditional eq 'AND' ? 0L : 1L
-;
-;     pos++
-;     print, level, pos, format='(%"%sexpr pos: %d")'
-;     uvalue = self->_import_condition(stack, pos, tree=tree, level=level + '  ')
-;     if (n_elements(uvalue) gt 0L) then children->add, uvalue
-;   endwhile
-;
-;   if (n_elements(conditional) gt 0L && children->count() gt 0L) then begin
-;     results = {type:type, children:children->toArray()}
-;   endif else results = !null
-;
-;   obj_destroy, children
-;
-;   return, results
-; end
-
 function comp_db_query::_import_condition, stack, pos, level=level
   compile_opt strictarr
 
@@ -337,6 +296,7 @@ function comp_db_query::_import_condition, stack, pos, level=level
   condition = {type:2, field:field, op:op, value:value}
   return, condition
 end
+
 
 function comp_db_query::_import_expr, stack, pos, level=level
   compile_opt strictarr
@@ -355,7 +315,11 @@ function comp_db_query::_import_expr, stack, pos, level=level
       pos++   ; consume )
 
       done = pos ge stack->count() || (stack[pos] ne 'and' && stack[pos] ne 'or')
-      if (~done) then type = stack[pos++]   ; TODO: check to make sure type is consistent
+      if (~done) then begin
+        if (type ne '' && stack[pos] ne type) then message, 'inconsistent expression'
+        type = stack[pos]
+        pos++
+      endif
     endwhile
 
     return, {type: type eq 'and' ? 0L : 1L, expressions: expressions}
@@ -365,21 +329,29 @@ function comp_db_query::_import_expr, stack, pos, level=level
 end
 
 
-pro comp_db_query::_import_results, results, tree=tree
+pro comp_db_query::_import_results, results, tree=tree, top=top
   compile_opt strictarr
 
   if (results.type eq 2L) then begin
     value = string(results.field, results.op, results.value, format='(%"%s %s ''%s''")')
-    node = widget_tree(tree, value=value, uvalue=results, /folder)
+    uvalue = results
+    parent = widget_tree(tree, value=value, uvalue=uvalue, /folder, /expanded)
   endif else begin
+    uvalue = {type: results.type}
     parent = widget_tree(tree, $
                          value=results.type eq 0 ? 'AND' : 'OR', $
-                         uvalue={type: results.type}, $
-                         /folder)
+                         uvalue=uvalue, $
+                         /folder, /expanded)
     foreach e, results.expressions do begin
       self->_import_results, e, tree=parent
     endforeach
   endelse
+
+  if (keyword_set(top)) then begin
+    self.current_tree_node = parent
+    widget_control, self.current_tree_node, set_tree_select=1, set_uname='root'
+    self->_set_type_controls, uvalue
+  endif
 end
 
 
@@ -387,8 +359,8 @@ pro comp_db_query::import, query
   compile_opt strictarr
 
   tree = widget_info(self.tlb, find_by_uname='tree')
-  root = widget_info(self.tlb, find_by_uname='root')
 
+  root = widget_info(self.tlb, find_by_uname='root')
   widget_control, root, /destroy
 
   stack = list()
@@ -400,11 +372,12 @@ pro comp_db_query::import, query
     token = self->_import_parse(query, start_index, length=length)
   endwhile
 
-  print, stack
-
   level = ''
   results = self->_import_expr(stack, 0, level=level)
-  self->_import_results, results, tree=tree
+  widget_control, tree, update=0
+  self->_import_results, results, tree=tree, /top
+  widget_control, tree, update=1
+  self->_set_tree_buttons
 
   obj_destroy, stack
 end
@@ -426,7 +399,12 @@ pro comp_db_query::handle_events, event
         widget_control, self.current_tree_node, /destroy
       end
     'child': begin
-        child_node = widget_tree(self.current_tree_node, value='AND', /folder, uvalue={type:0L}, /expanded)
+        if (widget_info(self.current_tree_node, /valid)) then begin
+          ctn = self.current_tree_node
+        endif else begin
+          ctn = widget_info(self.tlb, find_by_uname='tree')
+        endelse
+        child_node = widget_tree(ctn, value='AND', /folder, uvalue={type:0L}, /expanded)
       end
     'tree':
     'and': begin
@@ -488,24 +466,7 @@ pro comp_db_query::handle_events, event
           self.current_tree_node = event.id
           self->_set_tree_buttons
           widget_control, event.id, get_uvalue=uvalue
-          case uvalue.type of
-            0: b_uname = 'and'
-            1: b_uname = 'or'
-            2: b_uname = 'condition'
-          endcase
-          widget_control, widget_info(self.tlb, find_by_uname=b_uname), /set_button
-          condition_base = widget_info(self.tlb, find_by_uname='condition_base')
-          widget_control, condition_base, map=uvalue.type eq 2
-
-          if (uvalue.type eq 2) then begin
-            field_combobox = widget_info(self.tlb, find_by_uname='field')
-            op_combobox = widget_info(self.tlb, find_by_uname='op')
-            value_text = widget_info(self.tlb, find_by_uname='value')
-
-            widget_control, field_combobox, set_combobox_select=self->_get_field_index(uvalue.field)
-            widget_control, op_combobox, set_combobox_select=self->_get_op_index(uvalue.op)
-            widget_control, value_text, set_value=uvalue.value
-          endif
+          self->_set_type_controls, uvalue
         endif
       end
   endcase
