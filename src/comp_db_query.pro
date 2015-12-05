@@ -409,7 +409,32 @@ pro comp_db_query::handle_events, event
 
   uname = widget_info(event.id, /uname)
   case uname of
-    'tlb':
+    'tlb': begin
+        toolbar = widget_info(self.tlb, find_by_uname='toolbar')
+        tree = widget_info(self.tlb, find_by_uname='tree')
+        bottom = widget_info(self.tlb, find_by_uname='bottom')
+
+        tlb_geometry = widget_info(self.tlb, /geometry)
+        toolbar_geometry = widget_info(toolbar, /geometry)
+        bottom_geometry = widget_info(bottom, /geometry)
+        statusbar_geometry = widget_info(self.statusbar, /geometry)
+
+        _x = event.x > 500.0
+        _y = event.y > 200.0
+
+        widget_control, self.tlb, update=0
+        widget_control, self.statusbar, scr_xsize=_x - 2 * tlb_geometry.xpad
+        widget_control, tree, scr_xsize=_x - 2 * tlb_geometry.xpad, $
+                              scr_ysize=_y $
+                                - 2 * tlb_geometry.ypad $
+                                - 3 * tlb_geometry.space $
+                                - toolbar_geometry.scr_ysize $
+                                - bottom_geometry.scr_ysize $
+                                - statusbar_geometry.scr_ysize
+        widget_control, bottom, scr_xsize=_x - 2 * tlb_geometry.xpad, $
+                                scr_ysize=bottom_geometry.scr_ysize
+        widget_control, self.tlb, update=1
+      end
     'add': begin
         parent = widget_info(self.current_tree_node, /parent)
         new_node = widget_tree(parent, value='AND', $
@@ -541,18 +566,18 @@ end
 pro comp_db_query::create_widgets
   compile_opt strictarr
 
-  tree_xsize = 400.0
-  clause_xsize = 300.0
+  tree_xsize = 500.0
+  tree_ysize = 200.0
   space = 5.0
   xpad = 2.0
 
   self.tlb = widget_base(title=self.title, /column, /tlb_size_events, $
                          uvalue=self, uname='tlb', xpad=xpad)
-  content_base = widget_base(self.tlb, xpad=0.0, ypad=0.0, space=space, /row)
+  content_base = widget_base(self.tlb, xpad=0.0, ypad=0.0, space=space, /column)
 
-  left_column = widget_base(content_base, xpad=0.0, ypad=0.0, /column)
+  top_column = widget_base(content_base, xpad=0.0, ypad=0.0, /column)
 
-  toolbar = widget_base(left_column, /row, /toolbar, space=5.0)
+  toolbar = widget_base(top_column, /row, /toolbar, space=5.0, uname='toolbar')
   create_toolbar = widget_base(toolbar, /row, space=0.0, xpad=0.0, ypad=0.0, /toolbar)
   add_button = widget_button(create_toolbar, /bitmap, uname='add', $
                              tooltip='Add clause', $
@@ -575,26 +600,28 @@ pro comp_db_query::create_widgets
                               tooltip='Open query', $
                               value=self->_loadicon('open.bmp'))
 
-  tree = widget_tree(left_column, scr_xsize=tree_xsize, uname='tree')
+  tree = widget_tree(top_column, scr_xsize=tree_xsize, scr_ysize=tree_ysize, uname='tree')
   root = widget_tree(tree, value='AND', uname='root', /folder, /expanded, $
                      uvalue={type:0L}, $
                      bitmap=self->_loadicon('mcr.bmp', /read))
 
-  right_column = widget_base(content_base, xpad=0.0, ypad=0.0, /column, $
-                             scr_xsize=clause_xsize)
-  type_base = widget_base(right_column, /row, xpad=0.0, ypad=0.0, /exclusive, /align_center)
+  bottom_column = widget_base(content_base, xpad=0.0, ypad=0.0, /column, $
+                              scr_xsize=tree_xsize, uname='bottom', /frame)
+  type_base = widget_base(bottom_column, /row, xpad=0.0, ypad=0.0, /exclusive, /align_center)
   and_button = widget_button(type_base, value='AND', uname='and')
   or_button = widget_button(type_base, value='OR', uname='or')
   condition_button = widget_button(type_base, value='Condition', uname='condition')
 
-  condition_base = widget_base(right_column, xpad=0.0, ypad=0.0, /row, /align_center, $
+  condition_base = widget_base(bottom_column, xpad=0.0, ypad=0.0, /row, /align_center, $
                                map=0, uname='condition_base')
   fields_combobox = widget_combobox(condition_base, value=*self.fields, uname='field')
   op_combobox = widget_combobox(condition_base, value=self->_ops(), scr_xsize=50.0, uname='op')
-  value_text = widget_text(condition_base, value='', scr_xsize=100.0, /editable, uname='value')
+  value_text = widget_text(condition_base, value='', scr_xsize=300.0, /editable, uname='value')
+
+  spacer = widget_base(bottom_column, scr_ysize=10.0)
 
   self.statusbar = widget_label(self.tlb, $
-                                scr_xsize=tree_xsize + space + clause_xsize + 2 * xpad, $
+                                scr_xsize=tree_xsize + 2 * xpad, $
                                 /align_left, /sunken_frame)
 end
 
