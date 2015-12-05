@@ -137,6 +137,23 @@ pro comp_db_query::_set_condition_title
 end
 
 
+function comp_db_query::_loadicon, basename, read=read
+  compile_opt strictarr
+
+  filename = filepath(basename, subdir=['resource', 'bitmaps'])
+  if (keyword_set(read)) then begin
+    im = read_bmp(filename, r, g, b)
+    im3 = make_array(dimension=[size(im, /dimensions), 3], type=size(im, /type))
+    im3[*, *, 0] = r[im]
+    im3[*, *, 1] = g[im]
+    im3[*, *, 2] = b[im]
+    return, im3
+  endif else begin
+    return, filename
+  endelse
+end
+
+
 ;= API
 
 ;+
@@ -335,13 +352,15 @@ pro comp_db_query::_import_results, results, tree=tree, top=top
   if (results.type eq 2L) then begin
     value = string(results.field, results.op, results.value, format='(%"%s %s ''%s''")')
     uvalue = results
-    parent = widget_tree(tree, value=value, uvalue=uvalue, /folder, /expanded)
+    parent = widget_tree(tree, value=value, uvalue=uvalue, $
+                         bitmap=self->_loadicon('new.bmp', /read))
   endif else begin
     uvalue = {type: results.type}
     parent = widget_tree(tree, $
                          value=results.type eq 0 ? 'AND' : 'OR', $
                          uvalue=uvalue, $
-                         /folder, /expanded)
+                         /folder, /expanded, $
+                         bitmap=self->_loadicon('mcr.bmp', /read))
     foreach e, results.expressions do begin
       self->_import_results, e, tree=parent
     endforeach
@@ -393,7 +412,10 @@ pro comp_db_query::handle_events, event
     'tlb':
     'add': begin
         parent = widget_info(self.current_tree_node, /parent)
-        new_node = widget_tree(parent, value='AND', /folder, uvalue={type:0L}, /expanded)
+        new_node = widget_tree(parent, value='AND', $
+                               /folder, /expanded, $
+                               uvalue={type:0L}, $
+                               bitmap=self->_loadicon('mcr.bmp', /read))
       end
     'remove': begin
         widget_control, self.current_tree_node, /destroy
@@ -404,25 +426,55 @@ pro comp_db_query::handle_events, event
         endif else begin
           ctn = widget_info(self.tlb, find_by_uname='tree')
         endelse
-        child_node = widget_tree(ctn, value='AND', /folder, uvalue={type:0L}, /expanded)
+        child_node = widget_tree(ctn, value='AND', /folder, /expanded, $
+                                 uvalue={type:0L}, $
+                                 bitmap=self->_loadicon('mcr.bmp', /read))
       end
     'tree':
     'and': begin
         if (widget_info(self.current_tree_node, /valid)) then begin
-          widget_control, self.current_tree_node, set_value='AND', set_uvalue={type:0L}
+          parent = widget_info(self.current_tree_node, /parent)
+          uname = widget_info(self.current_tree_node, /uname)
+          widget_control, self.current_tree_node, /destroy
+          self.current_tree_node = widget_tree(parent, $
+                                               value='AND', $
+                                               /folder, /expanded, $
+                                               uname=uname, $
+                                               uvalue={type:0L}, $
+                                               bitmap=self->_loadicon('mcr.bmp', /read))
+          condition_base = widget_info(self.tlb, find_by_uname='condition_base')
+          widget_control, self.current_tree_node, set_tree_select=1
+          widget_control, condition_base, map=0
         endif
       end
     'or': begin
         if (widget_info(self.current_tree_node, /valid)) then begin
-          widget_control, self.current_tree_node, set_value='OR', set_uvalue={type:1L}
+          parent = widget_info(self.current_tree_node, /parent)
+          uname = widget_info(self.current_tree_node, /uname)
+          widget_control, self.current_tree_node, /destroy
+          self.current_tree_node = widget_tree(parent, $
+                                               value='OR', $
+                                               /folder, /expanded, $
+                                               uname=uname, $
+                                               uvalue={type:1L}, $
+                                               bitmap=self->_loadicon('mcr.bmp', /read))
+          condition_base = widget_info(self.tlb, find_by_uname='condition_base')
+          widget_control, self.current_tree_node, set_tree_select=1
+          widget_control, condition_base, map=0
         endif
       end
     'condition': begin
         if (widget_info(self.current_tree_node, /valid)) then begin
-          widget_control, self.current_tree_node, $
-                          set_value='CONDITION', $
-                          set_uvalue={type:2L, index:'', op:'', value:''}
+          parent = widget_info(self.current_tree_node, /parent)
+          uname = widget_info(self.current_tree_node, /uname)
+          widget_control, self.current_tree_node, /destroy
+          self.current_tree_node = widget_tree(parent, $
+                                               value='CONDITION', $
+                                               uname=uname, $
+                                               uvalue={type:2L, index:'', op:'', value:''}, $
+                                               bitmap=self->_loadicon('new.bmp', /read))
           condition_base = widget_info(self.tlb, find_by_uname='condition_base')
+          widget_control, self.current_tree_node, set_tree_select=1
           widget_control, condition_base, map=1
         endif
         self->_set_tree_buttons
@@ -459,6 +511,7 @@ pro comp_db_query::handle_events, event
           readf, lun, query
           free_lun, lun
           self->import, query
+          self->set_status, 'Loaded query from ' + filename
         endif
       end
     else: begin
@@ -493,8 +546,6 @@ pro comp_db_query::create_widgets
   space = 5.0
   xpad = 2.0
 
-  bitmapdir = ['resource', 'bitmaps']
-
   self.tlb = widget_base(title=self.title, /column, /tlb_size_events, $
                          uvalue=self, uname='tlb', xpad=xpad)
   content_base = widget_base(self.tlb, xpad=0.0, ypad=0.0, space=space, /row)
@@ -505,27 +556,29 @@ pro comp_db_query::create_widgets
   create_toolbar = widget_base(toolbar, /row, space=0.0, xpad=0.0, ypad=0.0, /toolbar)
   add_button = widget_button(create_toolbar, /bitmap, uname='add', $
                              tooltip='Add clause', $
-                             value=filepath('plus.bmp', subdir=bitmapdir))
+                             value=self->_loadicon('plus.bmp'))
   minus_button = widget_button(create_toolbar, /bitmap, uname='remove', $
                                tooltip='Remove clause', $
-                               value=filepath('minus.bmp', subdir=bitmapdir))
+                               value=self->_loadicon('minus.bmp'))
   child_button = widget_button(create_toolbar, /bitmap, uname='child', $
                                tooltip='Add child clause', $
-                               value=filepath('shift_right.bmp', subdir=bitmapdir))
+                               value=self->_loadicon('shift_right.bmp'))
 
   file_toolbar = widget_base(toolbar, /row, space=0.0, xpad=0.0, ypad=0.0, /toolbar)
   export_button = widget_button(file_toolbar, /bitmap, uname='export', $
                                 tooltip='Export query', $
-                                value=filepath('export.bmp', subdir=bitmapdir))
+                                value=self->_loadicon('export.bmp'))
   save_button = widget_button(file_toolbar, /bitmap, uname='save', $
                               tooltip='Save query', $
-                              value=filepath('save.bmp', subdir=bitmapdir))
+                              value=self->_loadicon('save.bmp'))
   open_button = widget_button(file_toolbar, /bitmap, uname='open', $
                               tooltip='Open query', $
-                              value=filepath('open.bmp', subdir=bitmapdir))
+                              value=self->_loadicon('open.bmp'))
 
   tree = widget_tree(left_column, scr_xsize=tree_xsize, uname='tree')
-  root = widget_tree(tree, value='AND', uname='root', /folder, uvalue={type:0L}, /expanded)
+  root = widget_tree(tree, value='AND', uname='root', /folder, /expanded, $
+                     uvalue={type:0L}, $
+                     bitmap=self->_loadicon('mcr.bmp', /read))
 
   right_column = widget_base(content_base, xpad=0.0, ypad=0.0, /column, $
                              scr_xsize=clause_xsize)
