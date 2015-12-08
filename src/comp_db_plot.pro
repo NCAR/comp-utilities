@@ -209,9 +209,11 @@ pro comp_db_plot::handle_events, event
         draw_ysize = event.y - 2 * tlb_geometry.ypad - 2 * tlb_geometry.space $
                        - toolbar_geometry.scr_ysize $
                        - statusbar_geometry.scr_ysize
+        widget_control, self.tlb, update=0
         widget_control, self.draw, scr_xsize=draw_xsize, $
                                    scr_ysize=draw_ysize 
-        widget_control, self.statusbar, scr_xsize=draw_xize
+        widget_control, self.statusbar, scr_xsize=draw_xsize
+        widget_control, self.tlb, update=1
 
         self->redraw
       end
