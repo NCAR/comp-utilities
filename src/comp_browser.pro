@@ -448,11 +448,12 @@ end
 ;  _extra : in, optional, type=keywords
 ;    keywords to `mg_fits_browser::init`
 ;-
-function comp_browser::init, _extra=e
+function comp_browser::init, tlb=tlb, _extra=e
   compile_opt strictarr
 
   if (~self->mg_fits_browser::init(/tlb_size_events, _extra=e)) then return, 0
 
+  tlb = self.tlb
   self.draw_size = 512.0
 
   return, 1
