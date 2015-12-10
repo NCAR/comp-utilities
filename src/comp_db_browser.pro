@@ -78,10 +78,10 @@ pro comp_db_browser::_update_table, db_values
 
   if (n_elements(db_values) eq 0L) then begin
     n_columns = 10
-    n_rows = 10
+    n_rows = 1
     widget_control, self.table, $
                     set_value=strarr(n_columns), $
-                    xsize=n_blank, $
+                    xsize=n_columns, $
                     ysize=n_rows, $
                     column_labels=strarr(n_columns)
   endif else begin
