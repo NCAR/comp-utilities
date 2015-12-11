@@ -259,11 +259,17 @@ pro comp_db_browser::create_widgets
   self.current_instrument = 'comp'
   self.current_engineering = 0B
 
+  n_rows = 500L
+  n_columns = 10L
+  
   self.table = widget_table(self.tlb, $
                             /no_row_headers, $
+                            background_color=bytarr(3) + 210B, $
                             ;column_labels=tag_names(db_values[0]), $
                             ;value=db_values, $
                             ;xsize=n_tags(db_values[0]), $
+                            xsize=n_columns, $
+                            ysize=n_rows, $
                             scr_xsize=table_xsize, $
                             scr_ysize=table_ysize, $
                             uname='table', $
