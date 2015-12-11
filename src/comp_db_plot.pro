@@ -133,9 +133,12 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
     original_device = !d.name
     set_plot, 'ps'
     device, filename=filename
+    charsize = 1.0
   endif else begin
     old_window = !d.window
     wset, self.draw_id
+    ; scale character size with display size
+    charsize = (!d.x_size / 600.) < (!d.y_size / 300.) < 1.25
   endelse
 
   device, get_decomposed=odec
@@ -154,7 +157,8 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
           xtickunits=xtickunits, $
           ytickformat=ytickformat, $
           ytickunits=ytickunits, $
-          psym=3
+          psym=3, $
+          charsize=charsize
   endelse
 
   device, decomposed=odec
