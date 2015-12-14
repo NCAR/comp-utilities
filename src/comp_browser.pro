@@ -392,50 +392,6 @@ function comp_browser::annotate_available, data, header
 end
 
 
-;+
-; Handle CoMP events
-;-
-pro comp_browser::handle_events, event
-  compile_opt strictarr
-
-  uname = widget_info(event.id, /uname)
-  if (uname eq 'tlb') then begin
-    draw = widget_info(self.tlb, find_by_uname='draw')
-    content_base = widget_info(self.tlb, find_by_uname='content_base')
-    fits_header = widget_info(self.tlb, find_by_uname='fits_header')
-    toolbar = widget_info(self.tlb, find_by_uname='toolbar')
-
-    tlb_geometry = widget_info(self.tlb, /geometry)
-    tree_geometry = widget_info(self.tree, /geometry)
-    draw_geometry = widget_info(draw, /geometry)
-    statusbar_geometry = widget_info(self.statusbar, /geometry)
-    content_base_geometry = widget_info(content_base, /geometry)
-    toolbar_geometry = widget_info(toolbar, /geometry)
-
-    statusbar_width = event.x - 2 * tlb_geometry.xpad
-    tree_height = event.y - statusbar_geometry.scr_ysize - toolbar_geometry.scr_ysize $
-                    - 2 * tlb_geometry.ypad - 2 * tlb_geometry.margin
-    draw_size = draw_geometry.scr_ysize + tree_height - tree_geometry.scr_ysize
-    tree_width = event.x - draw_size $
-                 - 2 * tlb_geometry.xpad $
-                 - 2 * content_base_geometry.xpad - content_base_geometry.margin
-
-    widget_control, self.tlb, update=0
-
-    widget_control, draw, scr_xsize=draw_size, scr_ysize=draw_size
-    widget_control, fits_header, scr_xsize=draw_size, scr_ysize=draw_size
-    widget_control, self.statusbar, scr_xsize=statusbar_width
-    widget_control, self.tree, scr_xsize=tree_width, scr_ysize=tree_height
-
-    widget_control, self.tlb, update=1
-
-    self->redisplay
-  endif else begin
-    self->mg_fits_browser::handle_events, event
-  endelse
-end
-
-
 ;= lifecycle methods
 
 ;+
