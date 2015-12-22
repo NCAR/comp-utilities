@@ -446,7 +446,7 @@ end
 ;     set to a named variable to retrieve the top-level base widget identifier
 ;     of the FITS browser
 ;-
-pro comp_browser, pfilenames, filenames=kfilenames, tlb=tlb
+pro comp_browser, pfilenames, filenames=kfilenames, tlb=tlb, _extra=e
   compile_opt strictarr
   common comp_browser_common, browser
 
@@ -461,7 +461,8 @@ pro comp_browser, pfilenames, filenames=kfilenames, tlb=tlb
   endif else begin
     browser = mg_fits_browser(filenames=_filenames, $
                               tlb=tlb, $
-                              classname='comp_browser')
+                              classname='comp_browser', $
+                              _extra=e)
   endelse
 end
 
