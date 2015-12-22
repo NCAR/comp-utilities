@@ -378,7 +378,8 @@ pro comp_dir_browser::handle_events, event
     'display_files': begin
         if (~obj_valid(self.file_browser)) then begin
           resolve_routine, 'comp_browser'
-          self.file_browser = mg_fits_browser(classname='comp_browser')
+          self.file_browser = mg_fits_browser(classname='comp_browser', $
+                                              group_leader=self.tlb, /floating)
         endif
         self.file_browser->load_files, (*(self.files))[self.selection[0]:self.selection[1]]
       end
