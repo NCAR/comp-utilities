@@ -285,6 +285,7 @@ pro comp_dir_browser::load_datedir, datedir
               files_info[f].n_dark = strtrim(n, 2)
               files_info[f].time = file_basename(files[f]) eq 'dark.fts' ? 'darks' : time
             end
+          else: self->set_status, 'unknown data file type: ' + type
         endcase
 
         files_info[f].exposure = string(expose, format='(%"%0.1f ms")')
