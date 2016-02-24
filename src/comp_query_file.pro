@@ -35,6 +35,8 @@
 ;     ID for observation within an `OBSERVATION_PLAN`
 ;   observation_plan : out, optional, type=string
 ;     plan for file, i.e., synoptic, waves, etc.
+;   pol_angle : out, optional, type=float
+;     polarization angle `POLANGLE` keyword
 ;-
 pro comp_query_file, filename, $
                      group=group, $
@@ -47,7 +49,8 @@ pro comp_query_file, filename, $
                      cal_polarizer=cal_polarizer, $
                      cal_retarder=cal_retarder, $
                      observation_id=observation_id, $
-                     observation_plan=observation_plan
+                     observation_plan=observation_plan, $
+                     pol_angle=pol_angle
   compile_opt idl2
 
   fits_open, filename, fcb
@@ -92,6 +95,8 @@ pro comp_query_file, filename, $
   endelse
 
   cal_polarizer = sxpar(header, 'POLARIZR')
+  pol_angle = sxpar(header, 'POLANGLE', count=count)
+  if (count eq 0L) then pol_angle = !values.f_nan
 
   cal_retarder = sxpar(header, 'RETARDER', count=count)
   if (count eq 0L) then cal_retarder = 0

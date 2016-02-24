@@ -43,18 +43,31 @@ end
 ; :Returns:
 ;   structure
 ;-
-function comp_dir_browser_row
+function comp_dir_browser::comp_dir_browser_row
   compile_opt strictarr
 
-  return, {time: '', $
-           exposure: '', $
-           n_dark: '', $
-           n_flat: '', $
-           n_data: '', $
-           wavelengths: '', $
-           pol_states: '', $
-           obs_plan: '', $
-           obs_id: ''}
+  return, self.calibration $
+            ? {time: '', $
+               exposure: '', $
+               n_dark: '', $
+               n_flat: '', $
+               n_data: '', $
+               wavelengths: '', $
+               pol_states: '', $
+               obs_plan: '', $
+               obs_id: '', $
+               polarizer: '', $
+               retarder: '', $
+               pol_angle: ''} $
+            : {time: '', $
+               exposure: '', $
+               n_dark: '', $
+               n_flat: '', $
+               n_data: '', $
+               wavelengths: '', $
+               pol_states: '', $
+               obs_plan: '', $
+               obs_id: ''}
 end
 
 
@@ -247,7 +260,7 @@ pro comp_dir_browser::load_datedir, datedir
       widget_control, self.table, ysize=0
       file_info = {}
     endif else begin
-      files_info = replicate(comp_dir_browser_row(), n_files)
+      files_info = replicate(self->comp_dir_browser_row(), n_files)
 
       ; TODO: handle L0 vs L1 differently
 
@@ -269,7 +282,9 @@ pro comp_dir_browser::load_datedir, datedir
                          beam_state=beam, wavelength=wave, $
                          polarization=pol, type=type, $
                          exposure=expose, cover=cover, $
-                         observation_id=obs_id, observation_plan=obs_plan
+                         observation_id=obs_id, observation_plan=obs_plan, $
+                         cal_polarizer=polarizer, cal_retarder=retarder, $
+                         pol_angle=pol_angle
 
         n = n_elements(pol)
         case type of
@@ -293,6 +308,13 @@ pro comp_dir_browser::load_datedir, datedir
         files_info[f].wavelengths = strjoin(strtrim(wave[uniq(wave, sort(wave))], 2), ', ')
         files_info[f].obs_plan = obs_plan
         files_info[f].obs_id = obs_id
+        if (self.calibration) then begin
+          files_info[f].polarizer = polarizer ? 'IN' : ''
+          files_info[f].retarder = retarder ? 'IN' : ''
+          files_info[f].pol_angle = finite(pol_angle) $
+                                      ? string(pol_angle, format='(%"%7.1f")') $
+                                      : ''
+        endif
       endfor
     endelse
 
@@ -421,10 +443,12 @@ end
 ;+
 ; Return the proportional widths of the various columns of the table widget.
 ;-
-function comp_dir_browser_colwidths
+function comp_dir_browser::comp_dir_browser_colwidths
   compile_opt strictarr
 
-  colwidths = [0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15]
+  colwidths = self.calibration $
+              ? [0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15, 0.1, 0.1, 0.1] $
+              : [0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15]
   return, colwidths / total(colwidths) * 0.975
 end
 
@@ -458,10 +482,17 @@ pro comp_dir_browser::create_widgets
                 'Pol states', $
                 'Obs plan', $
                 'Obs ID']
+  if (self.calibration) then begin
+    col_titles = [col_titles, $
+                  'Polarizer', $
+                  'Retarder', $
+                  'Pol angle']
+  endif
+
   self.table = widget_table(content_base, $
                             /no_row_headers, $
                             column_labels=col_titles, $
-                            column_widths=comp_dir_browser_colwidths() * table_xsize, $
+                            column_widths=self->comp_dir_browser_colwidths() * table_xsize, $
                             xsize=n_elements(col_titles), $
                             scr_xsize=table_xsize, $
                             scr_ysize=scr_ysize, $
@@ -529,11 +560,16 @@ end
 ;     directory to browse
 ;   tlb : out, optional, type=long
 ;     widget identifier of the CoMP directory browser
+;   calibration : in, optional, type=boolean
+;     set to display calibration related fields
 ;-
-function comp_dir_browser::init, directory=directory, tlb=tlb
+function comp_dir_browser::init, directory=directory, tlb=tlb, $
+                                 calibration=calibration
   compile_opt strictarr
 
   self.title = 'CoMP data directory browser'
+
+  self.calibration = keyword_set(calibration)
 
   self->create_widgets
   self->realize_widgets
@@ -560,6 +596,7 @@ pro comp_dir_browser__define
   compile_opt strictarr
 
   define = { comp_dir_browser, $
+             calibration: 0B, $
              date_dir: '', $
              tlb: 0L, $
              tree: 0L, $
@@ -586,8 +623,11 @@ end
 ; :Keywords:
 ;   directory : in, optional, type=string/strarr
 ;     directory/directories to browse
+;   calibration : in, optional, type=boolean
+;     set to display calibration related fields; only valid on newly created
+;     CoMP data browsers
 ;-
-pro comp_dir_browser, pdirectory, directory=kdirectory
+pro comp_dir_browser, pdirectory, directory=kdirectory, calibration=calibration
   compile_opt strictarr
   on_error, 2
   common comp_dir_browser, browser
@@ -598,7 +638,7 @@ pro comp_dir_browser, pdirectory, directory=kdirectory
   if (n_elements(_dir) eq 1 && _dir eq '') then message, 'directory not specified'
 
   if (~obj_valid(browser)) then begin
-    browser = obj_new('comp_dir_browser')
+    browser = obj_new('comp_dir_browser', calibration=calibration)
   endif
   browser->load_directory, _dir
 end
