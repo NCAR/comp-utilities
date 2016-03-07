@@ -387,8 +387,10 @@ pro comp_dir_browser::handle_events, event
               if (event.sel_top lt 0 || event.sel_bottom ge table_geometry.ysize) then return
               current_view = widget_info(self.table, /table_view)
               widget_control, self.table, $
-                              set_table_select=[0, event.sel_top, $
-                                                8, event.sel_bottom]
+                              set_table_select=[0, $
+                                                event.sel_top, $
+                                                n_elements(self->_colwidths()) - 1L, $
+                                                event.sel_bottom]
               widget_control, self.table, set_table_view=current_view
               self.selection = [event.sel_top, event.sel_bottom]
             end
@@ -443,7 +445,7 @@ end
 ;+
 ; Return the proportional widths of the various columns of the table widget.
 ;-
-function comp_dir_browser::comp_dir_browser_colwidths
+function comp_dir_browser::_colwidths
   compile_opt strictarr
 
   colwidths = self.calibration $
@@ -492,7 +494,7 @@ pro comp_dir_browser::create_widgets
   self.table = widget_table(content_base, $
                             /no_row_headers, $
                             column_labels=col_titles, $
-                            column_widths=self->comp_dir_browser_colwidths() * table_xsize, $
+                            column_widths=self->_colwidths() * table_xsize, $
                             xsize=n_elements(col_titles), $
                             scr_xsize=table_xsize, $
                             scr_ysize=scr_ysize, $
