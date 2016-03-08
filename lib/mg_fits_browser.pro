@@ -430,8 +430,6 @@ pro mg_fits_browser::resize, x, y
   details_geometry = widget_info(details_base, /geometry)
   search_geometry = widget_info(search_text, /geometry)
 
-  statusbar_width = x - 2 * tlb_geometry.xpad
-
   tree_height = y $
                   - statusbar_geometry.scr_ysize $
                   - toolbar_geometry.scr_ysize $
@@ -446,9 +444,13 @@ pro mg_fits_browser::resize, x, y
                  - tlb_geometry.space $
                  - 2 * content_base_geometry.xpad $
                  - 2 * content_base_geometry.margin
+
+  tree_width >= 100.0
   fits_header_ysize = draw_size $
                       - search_geometry.scr_ysize $
                       - details_geometry.space
+
+  statusbar_width = tree_width + draw_size + 2 * tlb_geometry.xpad + tlb_geometry.space
 
   widget_control, self.tlb, update=0
 
@@ -535,6 +537,24 @@ pro mg_fits_browser::handle_events, event
     'export_header':
     'tabs':
     'browser':
+    'draw': begin
+        case event.type of
+          2: begin
+              n_dims = size(*self.current_data, /n_dimensions)
+              if (n_dims eq 2) then begin
+                dims = size(*self.current_data, /dimensions)
+                image_draw = widget_info(self.tlb, find_by_uname='draw')
+                draw_geometry = widget_info(image_draw, /geometry)
+                x = event.x / draw_geometry.scr_xsize * dims[0]
+                y = event.y / draw_geometry.scr_ysize * dims[1]
+                value = (*self.current_data)[x, y]
+                self->set_status, string(x, y, value, $
+                                         format='(%"x: %d, y: %d, value: %0.2f")')
+              endif
+            end
+          else:
+        endcase
+      end
     'cmdline': begin
         if (self.currently_selected eq 0L) then return
 
@@ -578,11 +598,11 @@ pro mg_fits_browser::handle_events, event
         if (event.select) then begin
           widget_control, event.id, set_value=filepath('ellipse_active.bmp', $
                                                        subdir=['resource', 'bitmaps']), $
-                                    /bitmap
+                                                       /bitmap
         endif else begin
           widget_control, event.id, set_value=filepath('ellipse.bmp', $
                                                        subdir=['resource', 'bitmaps']), $
-                                    /bitmap
+                                                       /bitmap
         endelse
 
         if (self.currently_selected le 0L) then return
@@ -601,6 +621,7 @@ pro mg_fits_browser::handle_events, event
         annotate_button = widget_info(self.tlb, find_by_uname='annotate')
         widget_control, annotate_button, sensitive=self->annotate_available(data, header)
 
+        *self.current_data = data
         self->display, data, header
 
         header_widget = widget_info(self.tlb, find_by_uname='fits_header')
@@ -623,6 +644,7 @@ pro mg_fits_browser::handle_events, event
         annotate_button = widget_info(self.tlb, find_by_uname='annotate')
         widget_control, annotate_button, sensitive=self->annotate_available(data, header)
 
+        *self.current_data = data
         self->display, data, header
 
         header_widget = widget_info(self.tlb, find_by_uname='fits_header')
@@ -662,7 +684,7 @@ pro mg_fits_browser::create_widgets, _extra=e
   compile_opt strictarr
 
   self.tlb = widget_base(title=self.title, /column, uvalue=self, uname='tlb', $
-                         _extra=e)
+                         /tlb_size_events, _extra=e)
 
   ; toolbar
   bitmapdir = ['resource', 'bitmaps']
@@ -701,6 +723,7 @@ pro mg_fits_browser::create_widgets, _extra=e
   ; visualization
   image_base = widget_base(tabs, xpad=0, ypad=0, title='Data', /column)
   image_draw = widget_draw(image_base, xsize=scr_ysize, ysize=scr_ysize, $
+                           /motion_events, $
                            uname='draw', retain=2)
 
   ; details column
@@ -761,6 +784,7 @@ end
 pro mg_fits_browser::cleanup
   compile_opt strictarr
 
+  ptr_free, self.current_data
 end
 
 
@@ -791,6 +815,7 @@ function mg_fits_browser::init, filenames=filenames, tlb=tlb, _extra=e
   tlb = self.tlb
 
   self.annotate = 0B
+  self.current_data = ptr_new(/allocate_heap)
 
   if (n_elements(filenames) gt 0L) then self->load_files, filenames
 
@@ -819,7 +844,8 @@ pro mg_fits_browser__define
              nfiles: 0L, $
              currently_selected: 0L, $
              search_index: 0L, $
-             annotate: 0B $
+             annotate: 0B, $
+             current_data: ptr_new() $
            }
 end
 
