@@ -13,7 +13,7 @@ function comp_compare_images, filename1, filename2, $
   date = date_tokens[0] + date_tokens[1] + date_tokens[2]
 
   comp_make_mask, date, header, mask
- 
+
   fits_open, filename1, fcb
   fits_read, fcb, data1, header1, exten_no=extension
   fits_close, fcb
