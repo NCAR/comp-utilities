@@ -3,7 +3,7 @@
 ;+
 ; Launch various browsers for a given configuration file.
 ;
-; :Keywords:
+; :Params:
 ;   config_filename : in, required, type=string
 ;     filename of CoMP configuration file
 ;-

@@ -110,7 +110,7 @@ end
 ; to the empty string if there is no title to display.
 ;
 ; :Params:
-;   filename : in, required, type=string                                                    
+;   filename : in, required, type=string
 ;       filename to display in title
 ;-
 pro comp_dir_browser::set_title, filename
@@ -143,7 +143,7 @@ end
 ; Handle a directory of date directories which contain FITS files.
 ;
 ; :Params:
-;   dir : in, required, type=string/strarr
+;   dirs : in, required, type=string/strarr
 ;     root directory/directories to load
 ;-
 pro comp_dir_browser::load_directory, dirs

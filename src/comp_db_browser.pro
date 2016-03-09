@@ -44,7 +44,7 @@ end
 ; to the empty string if there is no title to display.
 ;
 ; :Params:
-;   filename : in, required, type=string                                                    
+;   filename : in, required, type=string
 ;       filename to display in title
 ;-
 pro comp_db_browser::set_title, filename
@@ -261,7 +261,7 @@ pro comp_db_browser::create_widgets
 
   n_rows = 500L
   n_columns = 10L
-  
+
   self.table = widget_table(self.tlb, $
                             /no_row_headers, $
                             background_color=bytarr(3) + 210B, $
@@ -414,6 +414,8 @@ end
 ; :Params:
 ;   config_filename : in, optional, type=string, default=~/.mysqldb
 ;     configuration file with login information for database
+;
+; :Keywords:
 ;   section : in, optional, type=string
 ;     section of the configuration file to use; defaults to the first
 ;     section
