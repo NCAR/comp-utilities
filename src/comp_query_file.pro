@@ -19,6 +19,8 @@
 ;     groups by extension
 ;   beam_state : out, optional, type=intarr
 ;     position of foreground/background beam
+;   wavelength : out, optional, type=fltarr
+;     wavelength
 ;   polarization_state : out, optional, type=strarr
 ;     polarization state, 'I+V', etc.
 ;   type : out, optional, type=string
@@ -53,6 +55,8 @@ pro comp_query_file, filename, $
                      pol_angle=pol_angle
   compile_opt idl2
 
+  basename = file_basename(filename)
+
   fits_open, filename, fcb
   n_extensions = fcb.nextend   ; number of images in file
 
@@ -69,28 +73,47 @@ pro comp_query_file, filename, $
   if (count eq 0L) then observation_plan = ''
 
   ; type
-  cover = sxpar(header, 'COVER', count=count)
-  if (count gt 0L) then begin
-    if (cover eq 0) then begin
-      type = 'DARK'
-    endif else begin
-      opal_value = sxpar(header, 'OPAL', count=count)
-      if (count gt 0L) then begin
-        if (opal_value eq 1) then begin
-          type = 'OPAL'
+
+  if (strmatch(basename, '*polarization.*.fts')) then begin
+    type = 'POLARIZATION'
+  endif else if (strmatch(basename, '*dynamics.*.fts')) then begin
+    type = 'DYNAMICS'
+  endif else if (strmatch(basename, '*mean.fts')) then begin
+    type = 'MEAN'
+  endif else if (strmatch(basename, '*median.fts')) then begin
+    type = 'MEDIAN'
+  endif else if (strmatch(basename, '*quick_invert.fts')) then begin
+    type = 'QUICK_INVERT'
+  endif else if (strmatch(basename, '*sigma.fts')) then begin
+    type = 'SIGMA'
+  endif else begin
+    cover = sxpar(header, 'COVER', count=count)
+    if (count gt 0L) then begin
+      if (cover eq 0) then begin
+        type = 'DARK'
+      endif else begin
+        opal_value = sxpar(header, 'OPAL', count=count)
+        if (count gt 0L) then begin
+          if (opal_value eq 1) then begin
+            type = 'OPAL'
+          endif else begin
+            if (strmatch(basename, '*bkg.fts')) then begin
+              type = 'BACKGROUND'
+            endif else begin
+              type = 'DATA'
+            endelse
+          endelse
         endif else begin
-          type = 'DATA'
+          type = 'UNKNOWN'
         endelse
+      endelse
+    endif else begin
+      _type = strtrim(sxpar(header, 'DATATYPE', count=count), 2)
+      if (count gt 0L && _type eq 'FLAT') then begin
+        type = 'OPAL'
       endif else begin
         type = 'UNKNOWN'
       endelse
-    endelse
-  endif else begin
-    _type = strtrim(sxpar(header, 'DATATYPE', count=count), 2)
-    if (count gt 0L && _type eq 'FLAT') then begin
-      type = 'OPAL'
-    endif else begin
-      type = 'UNKNOWN'
     endelse
   endelse
 
@@ -107,7 +130,10 @@ pro comp_query_file, filename, $
     beam_state[i] = sxpar(header, 'BEAM', count=count)
     if (count eq 0L) then beam_state[i] = !values.f_nan
     wavelength[i] = sxpar(header, 'WAVELENG', count=count)
-    if (count eq 0L) then wavelength[i] = !values.f_nan
+    if (count eq 0L) then begin
+      wavelength[i] = sxpar(header, 'WAVE_REF', count=count)
+      if (count eq 0L) then wavelength[i] = !values.f_nan
+    endif
     polarization_state[i] = strcompress(sxpar(header, 'POLSTATE', count=count), /remove_all)
     if (count eq 0L) then polarization_state[i] = ''
     exposure = sxpar(header, 'EXPOSURE')

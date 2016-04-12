@@ -119,6 +119,9 @@ function comp_browser::file_bitmap, filename, header
     'UNKNOWN': begin
         bmp = bytarr(16, 16, 3) + 255B
       end
+    else: begin
+        bmp = bytarr(16, 16, 3) + 255B
+      end
   endcase
 
   return, bmp

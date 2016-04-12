@@ -47,7 +47,8 @@ function comp_dir_browser::comp_dir_browser_row
   compile_opt strictarr
 
   return, self.calibration $
-            ? {time: '', $
+            ? {type: '', $
+               time: '', $
                exposure: '', $
                n_dark: '', $
                n_flat: '', $
@@ -59,7 +60,8 @@ function comp_dir_browser::comp_dir_browser_row
                polarizer: '', $
                retarder: '', $
                pol_angle: ''} $
-            : {time: '', $
+            : {type: '', $
+               time: '', $
                exposure: '', $
                n_dark: '', $
                n_flat: '', $
@@ -252,6 +254,7 @@ pro comp_dir_browser::load_datedir, datedir
     self->set_status, 'Loading ' + datedir + '...'
 
     files = file_search(filepath('*.fts', root=datedir), count=n_files, /fold_case)
+
     *(self.files) = files
 
     (self.files_cache)[datedir] = n_files eq 0L ? [] : files
@@ -260,6 +263,7 @@ pro comp_dir_browser::load_datedir, datedir
       widget_control, self.table, ysize=0
       file_info = {}
     endif else begin
+      files_sort_index = lonarr(n_files) + 1L
       files_info = replicate(self->comp_dir_browser_row(), n_files)
 
       ; TODO: handle L0 vs L1 differently
@@ -289,18 +293,69 @@ pro comp_dir_browser::load_datedir, datedir
         n = n_elements(pol)
         case type of
           'OPAL': begin
+              files_info[f].type = 'flat'
               files_info[f].n_flat = strtrim(n, 2)
-              files_info[f].time = file_basename(files[f]) eq 'flat.fts' ? 'flats' : time
+              if (basename eq 'flat.fts') then begin
+                files_sort_index[f] = 0L
+                files_info[f].time = ''
+              endif else files_info[f].time = time
             end
           'DATA': begin
+              files_info[f].type = 'data'
+              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].time = time
+            end
+          'BACKGROUND': begin
+              files_info[f].type = 'background'
               files_info[f].n_data = strtrim(n, 2)
               files_info[f].time = time
             end
           'DARK': begin
+              files_info[f].type = 'dark'
               files_info[f].n_dark = strtrim(n, 2)
-              files_info[f].time = file_basename(files[f]) eq 'dark.fts' ? 'darks' : time
+              if (basename eq 'dark.fts') then begin
+                files_sort_index[f] = 0L
+                files_info[f].time = ''
+              endif else files_info[f].time = time
             end
-          else: self->set_status, 'unknown data file type: ' + type
+          'DYNAMICS': begin
+              files_info[f].type = 'dynamics'
+              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].time = time
+            end
+          'POLARIZATION': begin
+              files_info[f].type = 'polarization'
+              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].time = time
+            end
+          'MEAN': begin
+              files_info[f].type = 'mean'
+              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].time = ''
+              files_sort_index[f] = 0L
+            end
+          'MEDIAN': begin
+              files_info[f].type = 'median'
+              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].time = ''
+              files_sort_index[f] = 0L
+            end
+          'QUICK_INVERT': begin
+              files_info[f].type = 'quick_invert'
+              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].time = ''
+              files_sort_index[f] = 0L
+            end
+          'SIGMA': begin
+              files_info[f].type = 'sigma'
+              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].time = ''
+              files_sort_index[f] = 0L
+            end
+          else: begin
+              self->set_status, string(type, file_basename(files[f]), $
+                                       format='(%"unknown data file type %s for %s")')
+            end
         endcase
 
         files_info[f].exposure = string(expose, format='(%"%0.1f ms")')
@@ -316,6 +371,9 @@ pro comp_dir_browser::load_datedir, datedir
                                       : ''
         endif
       endfor
+      ind = mg_sort(files_sort_index)
+      files_info = files_info[ind]
+      *(self.files) = files[ind]
     endelse
 
     (self.inventories)[datedir] = files_info
@@ -449,8 +507,8 @@ function comp_dir_browser::_colwidths
   compile_opt strictarr
 
   colwidths = self.calibration $
-              ? [0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15, 0.1, 0.1, 0.1] $
-              : [0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15]
+              ? [0.15, 0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15, 0.1, 0.1, 0.1] $
+              : [0.15, 0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15]
   return, colwidths / total(colwidths) * 0.975
 end
 
@@ -475,7 +533,8 @@ pro comp_dir_browser::create_widgets
   self.tree = widget_tree(content_base, uname='browser', $
                           scr_xsize=tree_xsize, scr_ysize=scr_ysize)
 
-  col_titles = ['Time', $
+  col_titles = ['Type', $
+                'Time', $
                 'Exposure', $
                 'N dark', $
                 'N flat', $
