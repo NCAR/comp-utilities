@@ -222,6 +222,7 @@ pro comp_dir_browser::load_datedir, datedir
 
     *(self.files) = (self.files_cache)[datedir]
     n_files = n_elements(*(self.files))
+    n_images = total(long(files_info.n_images), /integer)
   endif else begin
     self->set_status, 'Loading ' + datedir + '...'
 
@@ -234,6 +235,7 @@ pro comp_dir_browser::load_datedir, datedir
     if (n_files eq 0L) then begin
       widget_control, self.table, ysize=0
       file_info = {}
+      n_images = 0L
     endif else begin
       files_sort_index = lonarr(n_files) + 1L
       files_info = replicate(self->comp_dir_browser_row(), n_files)
@@ -351,13 +353,14 @@ pro comp_dir_browser::load_datedir, datedir
       ind = mg_sort(files_sort_index)
       files_info = files_info[ind]
       *(self.files) = files[ind]
+      n_images = total(long(files_info.n_images), /integer)
     endelse
 
     (self.inventories)[datedir] = files_info
   endelse
 
   widget_control, self.table, set_value=files_info, ysize=n_files
-  n_images = total(long(files_info.n_images), /integer)
+
   self->set_status, string(n_images, n_files, $
                            format='(%"Loaded %d images in %d files")')
 end
