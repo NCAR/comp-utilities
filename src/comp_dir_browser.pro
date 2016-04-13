@@ -360,9 +360,55 @@ pro comp_dir_browser::load_datedir, datedir
   endelse
 
   widget_control, self.table, set_value=files_info, ysize=n_files
+  if (n_files gt 0) then begin
+    n_cols = n_tags(self->comp_dir_browser_row())
+    bcolors = bytarr(3, n_files * n_cols)
+    bcolors[0, *] = 200
+    bcolors[1, *] = 200
+    bcolors[2, *] = 200
+
+    self->_table_colors, files_info, 'dark', bcolors, $
+                         n_cols=n_cols, color=bytarr(3) + 140B
+    self->_table_colors, files_info, 'flat', bcolors, $
+                         n_cols=n_cols, color=bytarr(3) + 160B
+    self->_table_colors, files_info, 'calibration', bcolors, $
+                         n_cols=n_cols, color=[255B, 255B, 200B]
+    self->_table_colors, files_info, 'background', bcolors, $
+                         n_cols=n_cols, color=bytarr(3) + 180B
+    self->_table_colors, files_info, 'dynamics', bcolors, $
+                         n_cols=n_cols, color=[255B, 200B, 200B]
+    self->_table_colors, files_info, 'polarization', bcolors, $
+                         n_cols=n_cols, color=[255B, 220B, 220B]
+    self->_table_colors, files_info, 'mean', bcolors, $
+                         n_cols=n_cols, color=[230B, 255B, 230B]
+    self->_table_colors, files_info, 'median', bcolors, $
+                         n_cols=n_cols, color=[230B, 255B, 230B]
+    self->_table_colors, files_info, 'quick_invert', bcolors, $
+                         n_cols=n_cols, color=[230B, 255B, 230B]
+    self->_table_colors, files_info, 'sigma', bcolors, $
+                         n_cols=n_cols, color=[230B, 255B, 230B]
+
+
+    widget_control, self.table, background_color=bcolors
+  endif
 
   self->set_status, string(n_images, n_files, $
                            format='(%"Loaded %d images in %d files")')
+end
+
+
+pro comp_dir_browser::_table_colors, files_info, name, tcolors, $
+                                     n_cols=n_cols, color=color
+  compile_opt strictarr
+
+  ind = where(files_info.type eq name, n_rows)
+  if (n_rows gt 0) then begin
+    _ind = rebin(reform(ind * n_cols, 1, n_rows), n_cols, n_rows) $
+             + rebin(reform(lindgen(n_cols), n_cols, 1), n_cols, n_rows)
+    tcolors[0, _ind] = color[0]
+    tcolors[1, _ind] = color[1]
+    tcolors[2, _ind] = color[2]
+  endif
 end
 
 
