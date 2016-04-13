@@ -74,6 +74,8 @@ pro comp_query_file, filename, $
 
   ; type
 
+  cal_polarizer = sxpar(header, 'POLARIZR')
+
   if (strmatch(basename, '*polarization.*.fts')) then begin
     type = 'POLARIZATION'
   endif else if (strmatch(basename, '*dynamics.*.fts')) then begin
@@ -95,7 +97,7 @@ pro comp_query_file, filename, $
         opal_value = sxpar(header, 'OPAL', count=count)
         if (count gt 0L) then begin
           if (opal_value eq 1) then begin
-            type = 'OPAL'
+            type = cal_polarizer ? 'CALIBRATION' : 'OPAL'
           endif else begin
             if (strmatch(basename, '*bkg.fts')) then begin
               type = 'BACKGROUND'
@@ -110,14 +112,13 @@ pro comp_query_file, filename, $
     endif else begin
       _type = strtrim(sxpar(header, 'DATATYPE', count=count), 2)
       if (count gt 0L && _type eq 'FLAT') then begin
-        type = 'OPAL'
+        type = cal_polarizer ? 'CALIBRATION' : 'OPAL'
       endif else begin
         type = 'UNKNOWN'
       endelse
     endelse
   endelse
 
-  cal_polarizer = sxpar(header, 'POLARIZR')
   pol_angle = sxpar(header, 'POLANGLE', count=count)
   if (count eq 0L) then pol_angle = !values.f_nan
 

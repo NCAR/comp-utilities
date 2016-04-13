@@ -50,9 +50,7 @@ function comp_dir_browser::comp_dir_browser_row
             ? {type: '', $
                time: '', $
                exposure: '', $
-               n_dark: '', $
-               n_flat: '', $
-               n_data: '', $
+               n_images: '', $
                wavelengths: '', $
                pol_states: '', $
                obs_plan: '', $
@@ -63,9 +61,7 @@ function comp_dir_browser::comp_dir_browser_row
             : {type: '', $
                time: '', $
                exposure: '', $
-               n_dark: '', $
-               n_flat: '', $
-               n_data: '', $
+               n_images: '', $
                wavelengths: '', $
                pol_states: '', $
                obs_plan: '', $
@@ -211,30 +207,6 @@ end
 
 
 ;+
-; Compute total number of dark, flat, and data images.
-;
-; :Returns:
-;   `lonarr(3)`
-;
-; :Params:
-;   files_info : in, optional, type=array of structures
-;     array of structures of the same type as the return value of
-;     `COMP_DIR_BROWSER_ROW`; returns `lonarr(3)` if not present
-;-
-function comp_dir_browser::compute_totals, files_info
-  compile_opt strictarr
-
-  if (n_elements(files_info) eq 0L) then return, lonarr(3)
-
-  n_dark = total(long(files_info.n_dark), /preserve_type)
-  n_flat = total(long(files_info.n_flat), /preserve_type)
-  n_data = total(long(files_info.n_data), /preserve_type)
-
-  return, [n_dark, n_flat, n_data]
-end
-
-
-;+
 ; Load a date directory.
 ;
 ; :Params:
@@ -294,25 +266,30 @@ pro comp_dir_browser::load_datedir, datedir
         case type of
           'OPAL': begin
               files_info[f].type = 'flat'
-              files_info[f].n_flat = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               if (basename eq 'flat.fts') then begin
                 files_sort_index[f] = 0L
                 files_info[f].time = ''
               endif else files_info[f].time = time
             end
+          'CALIBRATION': begin
+              files_info[f].type = 'calibration'
+              files_info[f].n_images = strtrim(n, 2)
+              files_info[f].time = time
+            end
           'DATA': begin
               files_info[f].type = 'data'
-              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
             end
           'BACKGROUND': begin
               files_info[f].type = 'background'
-              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
             end
           'DARK': begin
               files_info[f].type = 'dark'
-              files_info[f].n_dark = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               if (basename eq 'dark.fts') then begin
                 files_sort_index[f] = 0L
                 files_info[f].time = ''
@@ -320,35 +297,35 @@ pro comp_dir_browser::load_datedir, datedir
             end
           'DYNAMICS': begin
               files_info[f].type = 'dynamics'
-              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
             end
           'POLARIZATION': begin
               files_info[f].type = 'polarization'
-              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
             end
           'MEAN': begin
               files_info[f].type = 'mean'
-              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
               files_sort_index[f] = 0L
             end
           'MEDIAN': begin
               files_info[f].type = 'median'
-              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
               files_sort_index[f] = 0L
             end
           'QUICK_INVERT': begin
               files_info[f].type = 'quick_invert'
-              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
               files_sort_index[f] = 0L
             end
           'SIGMA': begin
               files_info[f].type = 'sigma'
-              files_info[f].n_data = strtrim(n, 2)
+              files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
               files_sort_index[f] = 0L
             end
@@ -380,13 +357,9 @@ pro comp_dir_browser::load_datedir, datedir
   endelse
 
   widget_control, self.table, set_value=files_info, ysize=n_files
-
-  total_images = self->compute_totals(files_info)
-  format = '(%"Images loaded: %d dark images, %d flat images, %d data images")'
-  self->set_status, string(total_images[0], $
-                           total_images[1], $
-                           total_images[2], $
-                           format=format)
+  n_images = total(long(files_info.n_images), /integer)
+  self->set_status, string(n_images, n_files, $
+                           format='(%"Loaded %d images in %d files")')
 end
 
 
@@ -507,8 +480,8 @@ function comp_dir_browser::_colwidths
   compile_opt strictarr
 
   colwidths = self.calibration $
-              ? [0.15, 0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15, 0.1, 0.1, 0.1] $
-              : [0.15, 0.1, 0.1, 0.08, 0.08, 0.08, 0.2775, 0.2775, 0.15, 0.15]
+              ? [0.15, 0.1, 0.1, 0.12, 0.2775, 0.2775, 0.15, 0.15, 0.1, 0.1, 0.1] $
+              : [0.15, 0.1, 0.1, 0.12, 0.2775, 0.2775, 0.15, 0.15]
   return, colwidths / total(colwidths) * 0.975
 end
 
@@ -536,9 +509,7 @@ pro comp_dir_browser::create_widgets
   col_titles = ['Type', $
                 'Time', $
                 'Exposure', $
-                'N dark', $
-                'N flat', $
-                'N data', $
+                'No. images', $
                 'Wavelengths', $
                 'Pol states', $
                 'Obs plan', $
