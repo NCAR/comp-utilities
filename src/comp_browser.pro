@@ -135,7 +135,7 @@ function comp_browser::file_bitmap, filename, header
           bmp = transpose(bmp, [1, 2, 0])
         endelse
       end
-    'UNKNOWN': bmp = bytarr(16, 16, 3) + 255B
+    'BACKGROUND': bmp = self->_make_icon(bytarr(3) + 180B)
     'DYNAMICS': bmp = self->_make_icon([255B, 200B, 200B])
     'POLARIZATION': bmp = self->_make_icon([255B, 220B, 220B])
     'MEAN': bmp = self->_make_icon([230B, 255B, 230B])
@@ -319,14 +319,18 @@ end
 ;     extension name
 ;   ext_header : in, required, type=strarr
 ;     header for extension
+;
+; :Keywords:
+;   filename : in, required, type=string
+;     filename of file
 ;-
-function comp_browser::extension_bitmap, ext_number, ext_name, ext_header
+function comp_browser::extension_bitmap, ext_number, ext_name, ext_header, $
+                                         filename=filename
   compile_opt strictarr
 
-  datatype = sxpar(ext_header, 'DATATYPE', count=count)
-  if (size(datatype, /type) ne 7) then return, 0
+  comp_query_file, filename, type=type
 
-  case datatype of
+  case type of
     'DATA': begin
         level = strtrim(sxpar(ext_header, 'LEVEL', count=level_found), 2)
         if (level_found && level eq 'L1') then begin
@@ -337,8 +341,28 @@ function comp_browser::extension_bitmap, ext_number, ext_name, ext_header
           bmp = transpose(bmp, [1, 2, 0])
         endelse
       end
-    'DARK': bmp = bytarr(16, 16, 3)
-    'FLAT': bmp = bytarr(16, 16, 3) + 128B
+    'BACKGROUND': bmp = self->_make_icon(bytarr(3) + 180B)
+    'DARK': begin
+        if (ext_name eq 'Time' || ext_name eq 'Exposure') then begin
+          bmp = 0
+        endif else begin
+          bmp = self->_make_icon(bytarr(3))
+        endelse
+      end
+    'OPAL': begin
+        if (ext_name eq 'Time' || ext_name eq 'Wavelength' || ext_name eq 'Exposure') then begin
+          bmp = 0
+        endif else begin
+          bmp = self->_make_icon(bytarr(3) + 160B)
+        endelse
+      end
+    'CALIBRATION':
+    'DYNAMICS': bmp = self->_make_icon([255B, 200B, 200B])
+    'POLARIZATION': bmp = self->_make_icon([255B, 220B, 220B])
+    'MEAN': bmp = self->_make_icon([230B, 255B, 230B])
+    'MEDIAN': bmp = self->_make_icon([230B, 255B, 230B])
+    'SIGMA': bmp = self->_make_icon([230B, 255B, 230B])
+    'QUICK_INVERT': bmp = self->_make_icon([230B, 255B, 230B])
     else: bmp = 0
   endcase
 

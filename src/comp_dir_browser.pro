@@ -339,13 +339,13 @@ pro comp_dir_browser::load_datedir, datedir
 
         exposures = exposures[uniq(exposures, sort(exposures))]
         files_info[f].exposure = n_elements(exposures) gt 1L $
-                                   ? 'multiple' $
+                                   ? (strjoin(string(exposures, format='(F0.1)'), ', ') + ' ms') $
                                    : (exposures gt 0. $
                                         ? string(exposures, format='(%"%0.1f ms")') $
                                         : '')
 
         files_info[f].pol_states = strjoin(strtrim(pol[uniq(pol, sort(pol))], 2), ', ')
-        files_info[f].wavelengths = strjoin(strtrim(wave[uniq(wave, sort(wave))], 2), ', ')
+        files_info[f].wavelengths = strjoin(strtrim(wave[uniq(wave, sort(wave))], 2), ', ') + ' nm'
         files_info[f].obs_plan = obs_plan
         files_info[f].obs_id = obs_id
         if (self.calibration) then begin

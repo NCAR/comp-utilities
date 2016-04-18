@@ -127,19 +127,25 @@ pro comp_query_file, filename, $
   if (count eq 0L) then cal_retarder = 0
 
   ; other keywords
-  for i = 0L, n_extensions - 1L do begin
-    fits_read, fcb, data, header, /header_only, exten_no=i + 1L
-    beam_state[i] = sxpar(header, 'BEAM', count=count)
-    if (count eq 0L) then beam_state[i] = !values.f_nan
-    wavelength[i] = sxpar(header, 'WAVELENG', count=count)
-    if (count eq 0L) then begin
-      wavelength[i] = sxpar(header, 'WAVE_REF', count=count)
-      if (count eq 0L) then wavelength[i] = !values.f_nan
-    endif
-    polarization_state[i] = strcompress(sxpar(header, 'POLSTATE', count=count), /remove_all)
-    if (count eq 0L) then polarization_state[i] = ''
-    exposures[i] = sxpar(header, 'EXPOSURE')
-  endfor
+  if (arg_present(beam_state) $
+        || arg_present(wavelength) $
+        || arg_present(polarization_state) $
+        || arg_present(exposures) $
+        || arg_present(group)) then begin
+    for i = 0L, n_extensions - 1L do begin
+      fits_read, fcb, data, header, /header_only, exten_no=i + 1L
+      beam_state[i] = sxpar(header, 'BEAM', count=count)
+      if (count eq 0L) then beam_state[i] = !values.f_nan
+      wavelength[i] = sxpar(header, 'WAVELENG', count=count)
+      if (count eq 0L) then begin
+        wavelength[i] = sxpar(header, 'WAVE_REF', count=count)
+        if (count eq 0L) then wavelength[i] = !values.f_nan
+      endif
+      polarization_state[i] = strcompress(sxpar(header, 'POLSTATE', count=count), /remove_all)
+      if (count eq 0L) then polarization_state[i] = ''
+      exposures[i] = sxpar(header, 'EXPOSURE')
+    endfor
+  endif
 
   ; group observations with like wavelength, polarization state, type and beam
   if (arg_present(group)) then begin
