@@ -490,11 +490,11 @@ pro comp_dir_browser::handle_events, event
       end
     'compute_totals': begin
         widget_control, self.table, get_value=files_info
-        total_images = self->compute_totals(files_info)
-        format = '(%"%d dark images, %d flat images, %d data images")'
-        self->set_status, string(total_images[0], $
-                                 total_images[1], $
-                                 total_images[2], $
+        n_images = total(long(files_info.n_images), /integer)
+        n_files = n_elements(files_info)
+        format = '(%"Loaded %d images in %d files")'
+        self->set_status, string(n_images, $
+                                 n_files, $
                                  format=format)
       end
     'root': begin
