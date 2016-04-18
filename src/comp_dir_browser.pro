@@ -259,7 +259,7 @@ pro comp_dir_browser::load_datedir, datedir
         comp_query_file, files[f], $
                          beam_state=beam, wavelength=wave, $
                          polarization=pol, type=type, $
-                         exposure=expose, cover=cover, $
+                         exposures=exposures, cover=cover, $
                          observation_id=obs_id, observation_plan=obs_plan, $
                          cal_polarizer=polarizer, cal_retarder=retarder, $
                          pol_angle=pol_angle
@@ -337,7 +337,13 @@ pro comp_dir_browser::load_datedir, datedir
             end
         endcase
 
-        files_info[f].exposure = string(expose, format='(%"%0.1f ms")')
+        exposures = exposures[uniq(exposures, sort(exposures))]
+        files_info[f].exposure = n_elements(exposures) gt 1L $
+                                   ? 'multiple' $
+                                   : (exposures gt 0. $
+                                        ? string(exposures, format='(%"%0.1f ms")') $
+                                        : '')
+
         files_info[f].pol_states = strjoin(strtrim(pol[uniq(pol, sort(pol))], 2), ', ')
         files_info[f].wavelengths = strjoin(strtrim(wave[uniq(wave, sort(wave))], 2), ', ')
         files_info[f].obs_plan = obs_plan

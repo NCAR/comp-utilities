@@ -25,7 +25,7 @@
 ;     polarization state, 'I+V', etc.
 ;   type : out, optional, type=string
 ;     type of CoMP data file "DARK", "OPAL", or "DATA"
-;   exposure : out, optional, type=float
+;   exposures : out, optional, type=fltarr
 ;     exposure time in milliseconds
 ;   cover : out, optional, type=int
 ;     cover present
@@ -46,7 +46,7 @@ pro comp_query_file, filename, $
                      wavelength=wavelength, $
                      polarization_state=polarization_state, $
                      type=type, $
-                     exposure=exposure, $
+                     exposures=exposures, $
                      cover=cover, $
                      cal_polarizer=cal_polarizer, $
                      cal_retarder=cal_retarder, $
@@ -63,6 +63,7 @@ pro comp_query_file, filename, $
   beam_state = intarr(n_extensions)
   wavelength = fltarr(n_extensions)
   polarization_state = strarr(n_extensions)
+  exposures = fltarr(n_extensions)
 
   type = ''
   fits_read, fcb, data, header, /header_only, exten_no=0
@@ -137,7 +138,7 @@ pro comp_query_file, filename, $
     endif
     polarization_state[i] = strcompress(sxpar(header, 'POLSTATE', count=count), /remove_all)
     if (count eq 0L) then polarization_state[i] = ''
-    exposure = sxpar(header, 'EXPOSURE')
+    exposures[i] = sxpar(header, 'EXPOSURE')
   endfor
 
   ; group observations with like wavelength, polarization state, type and beam

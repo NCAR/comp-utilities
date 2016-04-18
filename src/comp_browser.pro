@@ -114,7 +114,7 @@ end
 function comp_browser::file_bitmap, filename, header
   compile_opt strictarr
 
-  comp_query_file, filename, type=type, cal_polarizer=cal_polarizer
+  comp_query_file, filename, type=type
   level = strtrim(sxpar(header, 'LEVEL', count=level_found), 2)
 
   case type of
@@ -156,37 +156,153 @@ end
 ;   string
 ;
 ; :Params:
-;   ext_number : in, required, type=long
-;     extension number
-;   ext_name : in, required, type=long
-;     extension name
-;   ext_header : in, required, type=strarr
-;     header for extension
+;   n_exts : in, required, type=long
+;     number of extensions
+;   ext_names : in, required, type=strarr
+;     extension names
+;
+; :Keywords:
+;   filename : in, required, type=string
+;     filename of file
 ;-
-function comp_browser::extension_title, ext_number, ext_name, ext_header
+function comp_browser::extension_title, n_exts, ext_names, filename=filename
   compile_opt strictarr
 
-  datatype   = sxpar(ext_header, 'DATATYPE', count=count)
-  if (count eq 0L) then return, '--'
+  comp_query_file, filename, $
+                   type=type, $
+                   beam_state=beam_state, $
+                   wavelength=wavelength, $
+                   polarization_state=polarization_state, $
+                   exposures=exposures
 
-  polstate   = strtrim(sxpar(ext_header, 'POLSTATE', count=polstate_count), 2)
-  if (polstate_count eq 0L) then begin
-    if (ext_name ne '') then begin
-      tokens = strsplit(ext_name, ',', /extract)
-      polstate = strtrim(tokens[0], 2)
-    endif else begin
-      polstate = '--'
-    endelse
-  endif
+  titles = strarr(n_exts)
 
-  wavelength = sxpar(ext_header, 'WAVELENG')
-  beam       = sxpar(ext_header, 'BEAM', count=beam_count)
-  if (beam_count gt 0L) then begin
-    beam_desc  = beam gt 0 ? '(Corona in LR)' : '(Corona in UL)'
-  endif else beam_desc = ''
+  case type of
+    'DARK': begin
+        if (file_basename(filename) eq 'dark.fts') then begin   ; level 1
+          fits_open, filename, fcb
+          for e = 1L, n_exts do begin
+            if (ext_names[e] ne '') then begin
+              titles[e - 1] = ext_names[e]
+            endif else begin
+              fits_read, fcb, data, header, exten_no=e, /header_only
+              titles[e - 1] = string(sxpar(header, 'TIME_OBS'), $
+                                     exposures[e - 1], $
+                                     format='(%"%s @ %0.1f ms")')
+            endelse
+          endfor
+          fits_close, fcb
+        endif else begin   ; raw
+          beam_description = 'Corona in ' + (['UL', 'LR'])[beam_state > 0]
 
-  return, string(datatype, polstate, wavelength, beam_desc, $
-                 format='(%"%s: %s @ %0.2f %s")')
+          for e = 1L, n_exts do begin
+            titles[e - 1] = string(e, $
+                                   polarization_state[e - 1], $
+                                   wavelength[e - 1], $
+                                   beam_description[e - 1], $
+                                   format='(%"ext %d: %s @ %0.2f nm (%s)")')
+          endfor
+        endelse
+      end
+    'OPAL': begin
+        if (file_basename(filename) eq 'flat.fts') then begin   ; level 1
+          fits_open, filename, fcb
+          fits_read, fcb, times, times_header, exten_no=n_exts - 2
+          fits_read, fcb, exposures, exposures_header, exten_no=n_exts
+
+          beam_description = 'Corona in ' + (['UL', 'LR'])[beam_state > 0]
+
+          for e = 1L, n_exts do begin
+            if (e ge n_exts - 2) then begin
+              titles[e - 1] = fcb.extname[e]
+            endif else begin
+              titles[e - 1] = string(comp_times2str(times[e - 1]), $
+                                     wavelength[e - 1], $
+                                     beam_description[e - 1], $
+                                     format='(%"%s @ %0.2f nm (%s)")')
+            endelse
+          endfor
+
+          fits_close, fcb
+        endif else begin   ; raw
+          beam_description = 'Corona in ' + (['UL', 'LR'])[beam_state > 0]
+
+          for e = 1L, n_exts do begin
+            titles[e - 1] = string(e, $
+                                   polarization_state[e - 1], $
+                                   wavelength[e - 1], $
+                                   beam_description[e - 1], $
+                                   format='(%"ext %d: %s @ %0.2f nm (%s)")')
+          endfor
+        endelse
+      end
+    'CALIBRATION': begin
+          beam_description = 'Corona in ' + (['UL', 'LR'])[beam_state > 0]
+          for e = 1L, n_exts do begin
+            titles[e - 1] = string(e, $
+                                   polarization_state[e - 1], $
+                                   wavelength[e - 1], $
+                                   beam_description[e - 1], $
+                                   format='(%"ext %d: %s @ %0.2f nm (%s)")')
+          endfor
+        end
+    'DATA': begin
+        !null = where(beam_state eq 0, n_zero_beam)
+        if (n_zero_beam gt 0L) then begin   ; level 1
+          for e = 1L, n_exts do begin
+            titles[e - 1] = string(e, $
+                                   polarization_state[e - 1], $
+                                   wavelength[e - 1], $
+                                   format='(%"ext %d: %s @ %0.2f nm")')
+          endfor
+        endif else begin   ; raw
+          beam_description = 'Corona in ' + (['UL', 'LR'])[beam_state > 0]
+
+          for e = 1L, n_exts do begin
+            titles[e - 1] = string(e, $
+                                   polarization_state[e - 1], $
+                                   wavelength[e - 1], $
+                                   beam_description[e - 1], $
+                                   format='(%"ext %d: %s @ %0.2f nm (%s)")')
+          endfor
+        endelse
+      end
+    'BACKGROUND': begin
+          for e = 1L, n_exts do begin
+            titles[e - 1] = string(e, $
+                                   polarization_state[e - 1], $
+                                   wavelength[e - 1], $
+                                   format='(%"ext %d: %s @ %0.2f nm")')
+          endfor
+        end
+    'MEAN': begin
+          for e = 1L, n_exts do begin
+            titles[e - 1] = string(e, $
+                                   polarization_state[e - 1], $
+                                   wavelength[e - 1], $
+                                   format='(%"ext %d: %s @ %0.2f nm")')
+          endfor
+      end
+    'MEDIAN': begin
+          for e = 1L, n_exts do begin
+            titles[e - 1] = string(e, $
+                                   polarization_state[e - 1], $
+                                   wavelength[e - 1], $
+                                   format='(%"ext %d: %s @ %0.2f nm")')
+          endfor
+      end
+    'SIGMA': begin
+          for e = 1L, n_exts do begin
+            titles[e - 1] = string(e, $
+                                   polarization_state[e - 1], $
+                                   wavelength[e - 1], $
+                                   format='(%"ext %d: %s @ %0.2f nm")')
+          endfor
+      end
+    else: titles = self->mg_fits_browser::extension_title(n_exts, ext_names)
+  endcase
+
+  return, titles
 end
 
 
