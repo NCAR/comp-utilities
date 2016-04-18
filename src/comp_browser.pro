@@ -78,6 +78,28 @@ end
 
 
 ;+
+; Make a solid colored icon.
+;
+; :Returns:
+;   bytarr(16, 16, 3)
+;
+; :Params:
+;   color : in, required, type=bytarr(3)
+;     color to make icon
+;-
+function comp_browser::_make_icon, color
+  compile_opt strictarr
+
+  bmp = bytarr(16, 16, 3)
+  bmp[*, *, 0] = color[0]
+  bmp[*, *, 1] = color[1]
+  bmp[*, *, 2] = color[2]
+
+  return, bmp
+end
+
+
+;+
 ; Return bitmap of icon to display next to the file.
 ;
 ; :Returns:
@@ -97,15 +119,12 @@ function comp_browser::file_bitmap, filename, header
 
   case type of
     'DARK': bmp = bytarr(16, 16, 3)
-    'OPAL': begin
-        if (cal_polarizer eq 1) then begin
-          bmp = read_png(filepath('geardata24.png', $
-                                  subdir=['resource', 'bitmaps']))
-          bmp = transpose(bmp, [1, 2, 0])
-          bmp = congrid(bmp, 16, 16, 4)
-        endif else begin
-          bmp = bytarr(16, 16, 3) + 128B
-        endelse
+    'OPAL': bmp = bytarr(16, 16, 3) + 128B
+    'CALIBRATION': begin
+        bmp = read_png(filepath('geardata24.png', $
+                                subdir=['resource', 'bitmaps']))
+        bmp = transpose(bmp, [1, 2, 0])
+        bmp = congrid(bmp, 16, 16, 4)
       end
     'DATA': begin
         if (level_found && level eq 'L1') then begin
@@ -116,12 +135,14 @@ function comp_browser::file_bitmap, filename, header
           bmp = transpose(bmp, [1, 2, 0])
         endelse
       end
-    'UNKNOWN': begin
-        bmp = bytarr(16, 16, 3) + 255B
-      end
-    else: begin
-        bmp = bytarr(16, 16, 3) + 255B
-      end
+    'UNKNOWN': bmp = bytarr(16, 16, 3) + 255B
+    'DYNAMICS': bmp = self->_make_icon([255B, 200B, 200B])
+    'POLARIZATION': bmp = self->_make_icon([255B, 220B, 220B])
+    'MEAN': bmp = self->_make_icon([230B, 255B, 230B])
+    'MEDIAN': bmp = self->_make_icon([230B, 255B, 230B])
+    'QUICK_INVERT': bmp = self->_make_icon([230B, 255B, 230B])
+    'SIGMA': bmp = self->_make_icon([230B, 255B, 230B])
+    else: bmp = bytarr(16, 16, 3) + 255B
   endcase
 
   return, bmp
