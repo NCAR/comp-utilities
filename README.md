@@ -9,7 +9,7 @@ To examine a raw, L1, or L2 FITS data file, use `COMP_BROWSER`:
 
     IDL> comp_browser, 'raw.he/20150801/20150801.070011.FTS'
 
-This presents a list of the extensions in the file. The data can be displayed using the standard visualization presents used in the pipeline. For example the raw data is displayed as:
+This presents a list of the extensions in the file. The data can be displayed using the standard visualization settings used in the pipeline. For example, the raw data is displayed as:
 
 ![Raw data](src/raw-data.png "Raw data")
 
@@ -25,10 +25,21 @@ The primary and extension headers can also be displayed for any FITS file. Below
 
 ![L1 header](src/l1-header.png "L1 header")
 
+Use control-G and control-P to cycle forward and backward through the occurrences of the search text.
+
 
 ## COMP_DIR_BROWSER
 
-CoMP data, both raw and processed, is generally organized by date directories inside a top-level directory. `COMP_DIR_BROWSER` is used to quickly browse this directory and provide an inventory of the contents for each date. For example, to load the *process.l2test* directory containing only one day of Level 2 data, use:
+CoMP data, both raw and processed, is generally organized by date directories inside a top-level directory.
+
+    raw.he
+    ├── 20150801
+    ├── 20150803
+    ...
+    ├── 20150830
+    └── 20150831
+
+`COMP_DIR_BROWSER` is used to quickly browse this directory and provide an inventory of the contents for each date. For example, to load the *process.l2test* directory containing only one day of Level 2 data, use:
 
     IDL> comp_dir_browser, 'process.l2test'
 
@@ -36,17 +47,19 @@ Similarly, *raw.he*, containing a months worth of data, is opened in the same ma
 
     IDL> comp_dir_browser, 'raw.he'
 
-Selecting a date in the *raw.he* list shows the raw FITS data files (typically only darks, flats, and science images) in chronological order for the day:
+Selecting a date in the *raw.he* list shows the raw FITS data files (typically only darks, flats, and science images for raw data) in chronological order for the day:
 
 ![Raw directory](src/raw-dir.png "Raw directory")
 
-A processed date, such as one from *process.l2test*, can contain many types of FITS output files:
+Files are color coded by type. For instance, for raw data files, dark files are dark grey, flat files are a medium gray, and science data files are the default background color.
+
+A directory of processed data, such as one from *process.l2test*, can contain many types of FITS output files:
 
 ![L2 directory](src/l2-dir.png "L2 directory")
 
 Right clicking on a file or selection of files brings up a context menu to display those files in a `COMP_BROWSER` window for further examination.
 
-It is useful to use the `CALIBRATION` keyword when displaying raw calibration to show a few extra calibration related fields:
+It is useful to use the `CALIBRATION` keyword when displaying raw calibration to show a few extra calibration related columns:
 
     IDL> comp_dir_browser, 'raw.calibration', /calibration
 
@@ -61,7 +74,7 @@ The pipeline output logs and observer logs can be displayed with `COMP_LOG_BROWS
 
 ![Log browser](src/log-browser.png "Log browser")
 
-The log browser can filter the output log messages by severity. This allows jobs to be run with a verbose logging setting (DEBUG), but to display only a more restrictive set of messages chosen later.
+The log browser can filter the output log messages by severity. This allows jobs to be run with a verbose logging setting (such as DEBUG), but to display only a more restrictive set of messages chosen later.
 
 The log browser updates its content automatically, so it can be used to monitor currently running jobs.
 
