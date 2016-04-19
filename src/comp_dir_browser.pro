@@ -503,6 +503,9 @@ pro comp_dir_browser::handle_events, event
                                                 event.sel_bottom]
               widget_control, self.table, set_table_view=current_view
               self.selection = [event.sel_top, event.sel_bottom]
+              if (event.sel_top eq event.sel_bottom) then begin
+                self->status, file_basename((*(self.files))[event.sel_top])
+              endif
             end
           'WIDGET_CONTEXT': begin
               widget_displaycontextmenu, event.id, event.x, event.y, self.context_base
