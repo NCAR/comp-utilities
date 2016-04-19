@@ -236,10 +236,10 @@ pro comp_dir_browser::load_datedir, datedir
       file_info = {}
       n_images = 0L
     endif else begin
-      files_sort_index = lonarr(n_files) + 1L
-      files_info = replicate(self->comp_dir_browser_row(), n_files)
+      datetime_key = strarr(n_files)
+      type_key = lonarr(n_files)
 
-      ; TODO: handle L0 vs L1 differently
+      files_info = replicate(self->comp_dir_browser_row(), n_files)
 
       for f = 0L, n_files - 1L do begin
         if ((f + 1) mod 10 eq 0) then begin
@@ -269,66 +269,80 @@ pro comp_dir_browser::load_datedir, datedir
               files_info[f].type = 'flat'
               files_info[f].n_images = strtrim(n, 2)
               if (basename eq 'flat.fts') then begin
-                files_sort_index[f] = 0L
                 files_info[f].time = ''
-              endif else files_info[f].time = time
+                datetime_key[f] = ''
+              endif else begin
+                files_info[f].time = time
+                datetime_key[f] = strmid(basename, 0, 15)
+              endelse
             end
           'CALIBRATION': begin
               files_info[f].type = 'calibration'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
+              datetime_key[f] = strmid(basename, 0, 15)
             end
           'DATA': begin
               files_info[f].type = 'data'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
+              datetime_key[f] = strmid(basename, 0, 15)
             end
           'BACKGROUND': begin
               files_info[f].type = 'background'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
+              type_key[f] = 1
+              datetime_key[f] = strmid(basename, 0, 15)
             end
           'DARK': begin
               files_info[f].type = 'dark'
               files_info[f].n_images = strtrim(n, 2)
               if (basename eq 'dark.fts') then begin
-                files_sort_index[f] = 0L
                 files_info[f].time = ''
-              endif else files_info[f].time = time
+                datetime_key[f] = ''
+              endif else begin
+                files_info[f].time = time
+                datetime_key[f] = strmid(basename, 0, 15)
+              endelse
             end
           'DYNAMICS': begin
               files_info[f].type = 'dynamics'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
+              type_key[f] = 2
+              datetime_key[f] = strmid(basename, 0, 15)
             end
           'POLARIZATION': begin
               files_info[f].type = 'polarization'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
+              type_key[f] = 3
+              datetime_key[f] = strmid(basename, 0, 15)
             end
           'MEAN': begin
               files_info[f].type = 'mean'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
-              files_sort_index[f] = 0L
+              datetime_key[f] = ''
             end
           'MEDIAN': begin
               files_info[f].type = 'median'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
-              files_sort_index[f] = 0L
+              datetime_key[f] = ''
             end
           'QUICK_INVERT': begin
               files_info[f].type = 'quick_invert'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
-              files_sort_index[f] = 0L
+              datetime_key[f] = ''
             end
           'SIGMA': begin
               files_info[f].type = 'sigma'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
-              files_sort_index[f] = 0L
+              datetime_key[f] = ''
             end
           else: begin
               self->set_status, string(type, file_basename(files[f]), $
@@ -344,7 +358,15 @@ pro comp_dir_browser::load_datedir, datedir
                                         : '')
 
         files_info[f].pol_states = strjoin(strtrim(pol[uniq(pol, sort(pol))], 2), ', ')
-        files_info[f].wavelengths = strjoin(strtrim(wave[uniq(wave, sort(wave))], 2), ', ') + ' nm'
+        wave_ind = where(finite(wave), n_wave)
+        if (n_wave eq 0L) then begin
+          files_info[f].wavelengths = ''
+        endif else begin
+          wave = wave[wave_ind]
+          uniq_wave = wave[uniq(wave, sort(wave))]
+          files_info[f].wavelengths = strjoin(strtrim(uniq_wave, 2), ', ') + ' nm'
+        endelse
+
         files_info[f].obs_plan = obs_plan
         files_info[f].obs_id = obs_id
         if (self.calibration) then begin
@@ -355,7 +377,7 @@ pro comp_dir_browser::load_datedir, datedir
                                       : ''
         endif
       endfor
-      ind = mg_sort(files_sort_index)
+      ind = mg_sort(datetime_key, type_key)
       files_info = files_info[ind]
       *(self.files) = files[ind]
       (self.files_cache)[datedir] = files[ind]
