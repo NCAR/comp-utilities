@@ -182,8 +182,10 @@ pro comp_dir_browser::load_directory, dirs
     widget_control, self.tree, update=0
     for d = 0L, n_datedirs - 1L do begin
       if ((d + 1) mod 10 eq 0) then begin
+        widget_control, self.tree, update=1
         self->set_status, string(dirname, d + 1, n_datedirs, $
-                                 format='(%"Loading %s: %d/%d...")')
+                                 format='(%"Loading %s: %d/%d directories...")')
+        widget_control, self.tree, update=0
       endif
       level = comp_dir_browser_findlevel(datedirs[d], files=files, n_files=n_files)
       case level of
@@ -246,7 +248,7 @@ pro comp_dir_browser::load_datedir, datedir
       for f = 0L, n_files - 1L do begin
         if ((f + 1) mod 10 eq 0) then begin
           self->set_status, string(datedir, f + 1, n_files, $
-                                   format='(%"Loading %s: %d/%d...")')
+                                   format='(%"Loading %s: %d/%d files...")')
         endif
 
         ; set time fields
@@ -273,6 +275,7 @@ pro comp_dir_browser::load_datedir, datedir
               if (basename eq 'flat.fts') then begin
                 files_info[f].time = ''
                 datetime_key[f] = ''
+                type_key[f] = 1
               endif else begin
                 files_info[f].time = time
                 datetime_key[f] = strmid(basename, 0, 15)
@@ -303,6 +306,7 @@ pro comp_dir_browser::load_datedir, datedir
               if (basename eq 'dark.fts') then begin
                 files_info[f].time = ''
                 datetime_key[f] = ''
+                type_key[f] = 0
               endif else begin
                 files_info[f].time = time
                 datetime_key[f] = strmid(basename, 0, 15)
@@ -312,14 +316,21 @@ pro comp_dir_browser::load_datedir, datedir
               files_info[f].type = 'dynamics'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
-              type_key[f] = 2
+              type_key[f] = 3
               datetime_key[f] = strmid(basename, 0, 15)
             end
           'POLARIZATION': begin
               files_info[f].type = 'polarization'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = time
-              type_key[f] = 3
+              type_key[f] = 4
+              datetime_key[f] = strmid(basename, 0, 15)
+            end
+          'INTENSITY': begin
+              files_info[f].type = 'intensity'
+              files_info[f].n_images = strtrim(n, 2)
+              files_info[f].time = time
+              type_key[f] = 2
               datetime_key[f] = strmid(basename, 0, 15)
             end
           'MEAN': begin
@@ -327,24 +338,28 @@ pro comp_dir_browser::load_datedir, datedir
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
               datetime_key[f] = ''
+              type_key[f] = 2
             end
           'MEDIAN': begin
               files_info[f].type = 'median'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
               datetime_key[f] = ''
+              type_key[f] = 3
             end
           'QUICK_INVERT': begin
               files_info[f].type = 'quick_invert'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
               datetime_key[f] = ''
+              type_key[f] = 5
             end
           'SIGMA': begin
               files_info[f].type = 'sigma'
               files_info[f].n_images = strtrim(n, 2)
               files_info[f].time = ''
               datetime_key[f] = ''
+              type_key[f] = 4
             end
           else: begin
               self->set_status, string(type, file_basename(files[f]), $
@@ -359,7 +374,14 @@ pro comp_dir_browser::load_datedir, datedir
                                         ? string(exposures, format='(%"%0.1f ms")') $
                                         : '')
 
-        files_info[f].pol_states = strjoin(strtrim(pol[uniq(pol, sort(pol))], 2), ', ')
+        uniq_pol = pol[uniq(pol, sort(pol))]
+        pol_ind = where(uniq_pol ne '', n_valid_pol)
+        if (n_valid_pol eq 0L) then begin
+          files_info[f].pol_states = ''
+        endif else begin
+          files_info[f].pol_states = strjoin(strtrim(uniq_pol[pol_ind], 2), ', ')
+        endelse
+
         wave_ind = where(finite(wave), n_wave)
         if (n_wave eq 0L) then begin
           files_info[f].wavelengths = ''
@@ -504,7 +526,7 @@ pro comp_dir_browser::handle_events, event
               widget_control, self.table, set_table_view=current_view
               self.selection = [event.sel_top, event.sel_bottom]
               if (event.sel_top eq event.sel_bottom) then begin
-                self->status, file_basename((*(self.files))[event.sel_top])
+                self->set_status, file_basename((*(self.files))[event.sel_top])
               endif
             end
           'WIDGET_CONTEXT': begin
