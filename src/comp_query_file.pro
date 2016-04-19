@@ -77,17 +77,17 @@ pro comp_query_file, filename, $
 
   cal_polarizer = sxpar(header, 'POLARIZR')
 
-  if (strmatch(basename, '*polarization.*.fts')) then begin
+  if (strmatch(basename, '*polarization.*.fts*')) then begin
     type = 'POLARIZATION'
-  endif else if (strmatch(basename, '*dynamics.*.fts')) then begin
+  endif else if (strmatch(basename, '*dynamics.*.fts*')) then begin
     type = 'DYNAMICS'
-  endif else if (strmatch(basename, '*mean.fts')) then begin
+  endif else if (strmatch(basename, '*mean.fts*')) then begin
     type = 'MEAN'
-  endif else if (strmatch(basename, '*median.fts')) then begin
+  endif else if (strmatch(basename, '*median.fts*')) then begin
     type = 'MEDIAN'
-  endif else if (strmatch(basename, '*quick_invert.fts')) then begin
+  endif else if (strmatch(basename, '*quick_invert.fts*')) then begin
     type = 'QUICK_INVERT'
-  endif else if (strmatch(basename, '*sigma.fts')) then begin
+  endif else if (strmatch(basename, '*sigma.fts*')) then begin
     type = 'SIGMA'
   endif else begin
     cover = sxpar(header, 'COVER', count=count)
@@ -100,7 +100,7 @@ pro comp_query_file, filename, $
           if (opal_value eq 1) then begin
             type = cal_polarizer ? 'CALIBRATION' : 'OPAL'
           endif else begin
-            if (strmatch(basename, '*bkg.fts')) then begin
+            if (strmatch(basename, '*bkg.fts*')) then begin
               type = 'BACKGROUND'
             endif else begin
               type = 'DATA'
