@@ -181,8 +181,10 @@ pro comp_dir_browser::load_directory, dirs
                            count=n_datedirs)
     widget_control, self.tree, update=0
     for d = 0L, n_datedirs - 1L do begin
-      ; TODO: identify datedir as containing L0 or L1 data, set icon to
-      ; represent
+      if ((d + 1) mod 10 eq 0) then begin
+        self->set_status, string(dirname, d + 1, n_datedirs, $
+                                 format='(%"Loading %s: %d/%d...")')
+      endif
       level = comp_dir_browser_findlevel(datedirs[d], files=files, n_files=n_files)
       case level of
         -1: bitmap = bytarr(16, 16, 3)
