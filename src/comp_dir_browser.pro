@@ -229,7 +229,6 @@ pro comp_dir_browser::load_datedir, datedir
     files = file_search(filepath('*.fts', root=datedir), count=n_files, /fold_case)
 
     *(self.files) = files
-
     (self.files_cache)[datedir] = n_files eq 0L ? [] : files
 
     if (n_files eq 0L) then begin
@@ -359,6 +358,7 @@ pro comp_dir_browser::load_datedir, datedir
       ind = mg_sort(files_sort_index)
       files_info = files_info[ind]
       *(self.files) = files[ind]
+      (self.files_cache)[datedir] = files[ind]
       n_images = total(long(files_info.n_images), /integer)
     endelse
 
