@@ -50,7 +50,22 @@ function comp_browser::get_level, data, header
 
   dims = size(data, /dimensions)
   if (array_equal(dims, [1024, 1024])) then return, 0
-  if (array_equal(dims, [620, 620])) then return, 1
+  if (array_equal(dims, [620, 620])) then begin
+    switch sxpar(header, 'EXTNAME') of
+      'Intensity':
+      'Enhanced Intensity':
+      'Corrected LOS velocity':
+      'Line Width':
+      'Integrated Stokes Q':
+      'Integrated Stokes U':
+      'Total Linear Polarization': begin
+          return, 2
+        end
+      else:
+    endswitch
+    ; TODO: still doesn't catch mean, median, sigma, and quick_invert daily files
+    return, 1
+  endif
 
   return, -1
 end
@@ -425,38 +440,92 @@ pro comp_browser::display_image, data, header
   _data = congrid(data, dims[0], dims[1])
 
   top = 250
+
+  old_win_id = !d.window
+  device, get_decomposed=odec
+  tvlct, rgb, /get
+
   case level of
     0: begin
         display_min = 0.0
         display_max = 5000.0
         power = 1.0
-        ct = 0
+        loadct, 0, /silent
+        image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
       end
     1: begin
         wave_type = self->get_wave_type(sxpar(header, 'WAVELENG'))
-        ct = 3
+        loadct, 3, /silent
         case wave_type of
           '1074' : begin
               display_min = 0.0
               display_max = 5.0
               power = 0.5
+              image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
             end
           '1079' : begin
               display_min = 0
               display_max = 3.5
               power = 0.5
+              image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
             end
           '1083' : begin
               display_min = 0
               display_max = 12.0
               power = 0.3
+              image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
             end
+        endcase
+      end
+    2: begin
+        extname = sxpar(header, 'EXTNAME')
+        case extname of
+          'Intensity': begin
+              comp_aia_lct, wave=193, /load
+              display_min = 1
+              display_max = 5
+              power = 0.5
+              image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+            end
+          'Enhanced Intensity': begin
+              comp_aia_lct, wave=193, /load
+              display_min = 1
+              display_max = 5
+              power = 0.5
+              image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+            end
+          'Corrected LOS velocity': begin
+              restore, filepath('my_doppler_ct.sav', root=mg_src_root())
+              tvlct, r, g, b
+              display_min = -10
+              display_max = 10
+              image = bytscl(_data, min=display_min, max=display_max, top=253)
+            end
+          'Line Width': begin
+              loadct, 4, /silent
+              display_min = 25
+              display_max = 55
+              image = bytscl(_data, min=display_min, max=display_max, top=254)
+            end
+          'Integrated Stokes Q': begin
+              loadct, 0, /silent
+              image = bytscl(_data)
+            end
+          'Integrated Stokes U': begin
+              loadct, 0, /silent
+              image = bytscl(_data)
+            end
+          'Total Linear Polarization': begin
+              loadct, 0, /silent
+              display_min = -2.3
+              display_max = -0.3
+              image = bytscl(alog10(_data), min=display_min, max=display_max, /nan)
+            end
+          else:
         endcase
       end
     else: message, 'unknown level'
   endcase
-
-  image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
 
   if (dims[0] gt geo_info.draw_xsize || dims[1] gt geo_info.draw_ysize) then begin
     xoffset = 0
@@ -466,12 +535,8 @@ pro comp_browser::display_image, data, header
     yoffset = (geo_info.draw_ysize - dims[1]) / 2
   endelse
 
-  old_win_id = !d.window
-  device, get_decomposed=odec
-  tvlct, rgb, /get
-
   device, decomposed=0
-  loadct, ct, /silent
+
   wset, self.draw_id
   tvscl, image, xoffset, yoffset
 

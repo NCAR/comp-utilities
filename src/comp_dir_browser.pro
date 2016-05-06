@@ -89,7 +89,9 @@ end
 function comp_dir_browser_findlevel, datedir, files=files, n_files=n_files
   compile_opt strictarr
 
-  files = file_search(filepath(['*.fts', '*.fts.gz'], root=datedir), /fold_case, count=n_files)
+  files = file_search(datedir, '*.fts*', $
+                      /fold_case, $
+                      count=n_files)
   if (n_files eq 0) then return, -1
 
   raw_re = '[[:digit:]]{8}\.[[:digit:]]{6}\.FTS'
@@ -230,7 +232,7 @@ pro comp_dir_browser::load_datedir, datedir
   endif else begin
     self->set_status, 'Loading ' + datedir + '...'
 
-    files = file_search(filepath(['*.fts', '*.fts.gz'], root=datedir), count=n_files, /fold_case)
+    files = file_search(datedir, '*.fts*', count=n_files, /fold_case)
 
     *(self.files) = files
     (self.files_cache)[datedir] = n_files eq 0L ? [] : files
