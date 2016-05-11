@@ -489,10 +489,7 @@ pro comp_browser::display_image, data, header
             end
           'Enhanced Intensity': begin
               comp_aia_lct, wave=193, /load
-              display_min = 1
-              display_max = 5
-              power = 0.5
-              image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+              image = _data
             end
           'Corrected LOS velocity': begin
               restore, filepath('my_doppler_ct.sav', root=mg_src_root())
@@ -500,6 +497,9 @@ pro comp_browser::display_image, data, header
               display_min = -10
               display_max = 10
               image = bytscl(_data, min=display_min, max=display_max, top=253)
+              good_values = where(finite(_data), $
+                                  ncomplement=n_bad_values, complement=bad_values)
+              if (n_bad_values gt 0) then image[bad_values] = 254
             end
           'Line Width': begin
               loadct, 4, /silent
