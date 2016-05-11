@@ -498,14 +498,22 @@ pro comp_browser::display_image, data, header, filename=filename
           'Corrected LOS velocity': begin
               restore, filepath('my_doppler_ct.sav', root=mg_src_root())
               tvlct, r, g, b
+
               display_min = -10
               display_max = 10
-              image = bytscl(_data, min=display_min, max=display_max, top=253)
-              good_values = where(finite(_data), $
+              image = bytscl(data, min=display_min, max=display_max, top=253)
+              good_values = where(finite(data), $
                                   ncomplement=n_bad_values, complement=bad_values)
               if (n_bad_values gt 0) then image[bad_values] = 254
-              ; TODO: use filename to calculate thresh_unmasked
-              ; image[thresh_unmasked] = 254
+
+              fits_open, filename, fcb
+              fits_read, fcb, primary_data, primary_header, exten_no=0
+              fits_read, fcb, intensity, intensity_header, extname='Intensity'
+              fits_close, fcb
+
+              thresh_unmasked = where(intensity le 1, n_thresh_unmasked)
+              image[thresh_unmasked] = 254
+              image = congrid(image, dims[0], dims[1])
             end
           'Line Width': begin
               loadct, 4, /silent
@@ -544,7 +552,7 @@ pro comp_browser::display_image, data, header, filename=filename
   device, decomposed=0
 
   wset, self.draw_id
-  tvscl, image, xoffset, yoffset
+  tv, image, xoffset, yoffset
 
   tvlct, rgb
   device, decomposed=odec
