@@ -411,8 +411,12 @@ end
 ;     data to display
 ;   header : in, required, type=strarr
 ;     FITS header
+;
+; :Keywords:
+;   filename : in, optional, type=string
+;     filename of file containing image
 ;-
-pro comp_browser::display_image, data, header
+pro comp_browser::display_image, data, header, filename=filename
   compile_opt strictarr
 
   level = self->get_level(data, header)
@@ -500,6 +504,8 @@ pro comp_browser::display_image, data, header
               good_values = where(finite(_data), $
                                   ncomplement=n_bad_values, complement=bad_values)
               if (n_bad_values gt 0) then image[bad_values] = 254
+              ; TODO: use filename to calculate thresh_unmasked
+              ; image[thresh_unmasked] = 254
             end
           'Line Width': begin
               loadct, 4, /silent
@@ -554,8 +560,12 @@ end
 ;     data to display
 ;   header : in, required, type=strarr
 ;     FITS header
+;
+; :Keywords:
+;   filename : in, optional, type=string
+;     filename of file containing image
 ;-
-pro comp_browser::annotate_image, data, header
+pro comp_browser::annotate_image, data, header, filename=filename
   compile_opt strictarr
 
   ; back sure data is passed in
@@ -612,8 +622,12 @@ end
 ;     data to display
 ;   header : in, required, type=strarr
 ;     FITS header
+;
+; :Keywords:
+;   filename : in, optional, type=string
+;     filename of file containing image
 ;-
-function comp_browser::annotate_available, data, header
+function comp_browser::annotate_available, data, header, filename=filename
   compile_opt strictarr
 
   level = self->get_level(data, header)
