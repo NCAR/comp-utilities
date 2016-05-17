@@ -396,7 +396,7 @@ end
 function comp_browser::file_extensions
   compile_opt strictarr
 
-  return, [['*.fts;*.FTS', '*.*'], $
+  return, [['*.fts;*.fts.gz;*.FTS', '*.*'], $
            ['CoMP FITS files', 'All files']]
 end
 
