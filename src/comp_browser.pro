@@ -451,8 +451,20 @@ pro comp_browser::display_image, data, header, filename=filename
 
   case level of
     0: begin
-        display_min = 0.0
-        display_max = 5000.0
+        fits_open, filename, fcb
+        fits_read, fcb, primary_data, primary_header, exten_no=0, /header_only
+        fits_close, fcb
+
+        normalize = sxpar(primary_header, 'NORMALIZ', count=normalize_present)
+        datatype = sxpar(primary_header, 'DATATYPE', count=datatype_present)
+
+        if (datatype_present && strtrim(datatype, 2) eq 'FLAT') then begin
+          display_min = 0.0
+          display_max = normalize_present gt 0L ? normalize : 84.0
+        endif else begin
+          display_min = 0.0
+          display_max = 5000.0
+        endelse
         power = 1.0
         loadct, 0, /silent
         image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
