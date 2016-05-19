@@ -415,8 +415,10 @@ end
 ; :Keywords:
 ;   filename : in, optional, type=string
 ;     filename of file containing image
+;   dimensions : in, required, type=fltarr(2)
+;     dimensions of target window
 ;-
-pro comp_browser::display_image, data, header, filename=filename
+pro comp_browser::display_image, data, header, filename=filename, dimensions=dimensions
   compile_opt strictarr
 
   level = self->get_level(data, header)
@@ -425,29 +427,22 @@ pro comp_browser::display_image, data, header, filename=filename
     return
   endif
 
-  draw_wid = widget_info(self.tlb, find_by_uname='draw')
-  geo_info = widget_info(draw_wid, /geometry)
-
   dims = size(data, /dimensions)
 
   data_aspect_ratio = float(dims[1]) / float(dims[0])
-  draw_aspect_ratio = float(geo_info.draw_ysize) / float(geo_info.draw_xsize)
+  draw_aspect_ratio = float(dimensions[1]) / float(dimensions[0])
 
   if (data_aspect_ratio gt draw_aspect_ratio) then begin
     ; use y as limiting factor for new dimensions
-    dims *= geo_info.draw_ysize / float(dims[1])
+    dims *= dimensions[1] / float(dims[1])
   endif else begin
     ; use x as limiting factor for new dimensions
-    dims *= geo_info.draw_xsize / float(dims[0])
+    dims *= dimensions[0] / float(dims[0])
   endelse
 
   _data = congrid(data, dims[0], dims[1])
 
   top = 250
-
-  old_win_id = !d.window
-  device, get_decomposed=odec
-  tvlct, rgb, /get
 
   case level of
     0: begin
@@ -553,22 +548,17 @@ pro comp_browser::display_image, data, header, filename=filename
     else: message, 'unknown level'
   endcase
 
-  if (dims[0] gt geo_info.draw_xsize || dims[1] gt geo_info.draw_ysize) then begin
+  if (dims[0] gt dimensions[0] || dims[1] gt dimensions[1]) then begin
     xoffset = 0
     yoffset = 0
   endif else begin
-    xoffset = (geo_info.draw_xsize - dims[0]) / 2
-    yoffset = (geo_info.draw_ysize - dims[1]) / 2
+    xoffset = (dimensions[0] - dims[0]) / 2
+    yoffset = (dimensions[1] - dims[1]) / 2
   endelse
 
   device, decomposed=0
 
-  wset, self.draw_id
   tv, image, xoffset, yoffset
-
-  tvlct, rgb
-  device, decomposed=odec
-  wset, old_win_id
 end
 
 
@@ -584,8 +574,10 @@ end
 ; :Keywords:
 ;   filename : in, optional, type=string
 ;     filename of file containing image
+;   dimensions : in, required, type=fltarr(2)
+;     dimensions of target window
 ;-
-pro comp_browser::annotate_image, data, header, filename=filename
+pro comp_browser::annotate_image, data, header, filename=filename, dimensions=dimensions
   compile_opt strictarr
 
   ; back sure data is passed in
@@ -598,9 +590,6 @@ pro comp_browser::annotate_image, data, header, filename=filename
   ; only annotating level 1 data
   if (~array_equal(dims, [620, 620])) then return
 
-  draw_wid = widget_info(self.tlb, find_by_uname='draw')
-  geo_info = widget_info(draw_wid, /geometry)
-
   frpix1 = (sxpar(header, 'FRPIX1') - 1.0) / dims[0]
   frpix2 = (sxpar(header, 'FRPIX2') - 1.0) / dims[1]
   fradius = (sxpar(header, 'FRADIUS'))
@@ -610,27 +599,24 @@ pro comp_browser::annotate_image, data, header, filename=filename
   cradius = (sxpar(header, 'ORADIUS'))
 
   t = findgen(360) * !dtor
-  fx = geo_info.draw_xsize * (fradius / dims[0] * cos(t) + frpix1)
-  fy = geo_info.draw_ysize * (fradius / dims[1] * sin(t) + frpix2)
+  fx = dimensions[0] * (fradius / dims[0] * cos(t) + frpix1)
+  fy = dimensions[1] * (fradius / dims[1] * sin(t) + frpix2)
 
-  cx = geo_info.draw_xsize * (cradius / dims[0] * cos(t) + crpix1)
-  cy = geo_info.draw_ysize * (cradius / dims[1] * sin(t) + crpix2)
+  cx = dimensions[0] * (cradius / dims[0] * cos(t) + crpix1)
+  cy = dimensions[1] * (cradius / dims[1] * sin(t) + crpix2)
 
   fieldstop_color = 'ffffff'x
   occulter_color = '00ffff'x
 
-  device, get_decomposed=odec
   device, decomposed=1
 
-  plots, geo_info.draw_xsize * [frpix1], geo_info.draw_ysize * [frpix2], $
+  plots, dimensions[0] * [frpix1], dimensions[1] * [frpix2], $
          psym=1, /device, color=fieldstop_color
   plots, fx, fy, /device, color=fieldstop_color
 
-  plots, geo_info.draw_xsize * [crpix1], geo_info.draw_ysize * [crpix2], $
+  plots, dimensions[0] * [crpix1], dimensions[1] * [crpix2], $
          psym=1, /device, color=occulter_color
   plots, cx, cy, /device, color=occulter_color
-
-  device, decomposed=odec
 end
 
 
