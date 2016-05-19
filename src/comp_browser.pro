@@ -41,8 +41,12 @@ end
 ;     data read from FITS file
 ;   header : in, required, type=strarr
 ;     FITS header
+;
+; :Keywords:
+;   filename : in, optional, type=string
+;     filename corresponding to extension or file
 ;-
-function comp_browser::get_level, data, header
+function comp_browser::get_level, data, header, filename=filename
   compile_opt strictarr
 
   ndims = size(data, /n_dimensions)
@@ -58,12 +62,23 @@ function comp_browser::get_level, data, header
       'Line Width':
       'Integrated Stokes Q':
       'Integrated Stokes U':
-      'Total Linear Polarization': begin
+      'Total Linear Polarization': 
+      'I':
+      'Q':
+      'U': 
+      'Linear Polarization':
+      'Azimuth':
+      'Doppler Velocity': begin
           return, 2
         end
-      else:
+      else: begin
+          if (n_elements(filename) gt 0L) then begin
+            re = '.*\.(mean|median|sigma)\.fts'
+            if (stregex(file_basename(filename), re, /boolean)) then return, 2
+          endif
+        end
     endswitch
-    ; TODO: still doesn't catch mean, median, sigma, and quick_invert daily files
+
     return, 1
   endif
 
@@ -421,7 +436,7 @@ end
 pro comp_browser::display_image, data, header, filename=filename, dimensions=dimensions
   compile_opt strictarr
 
-  level = self->get_level(data, header)
+  level = self->get_level(data, header, filename=filename)
   if (level lt 0) then begin
     self->erase
     return
@@ -490,17 +505,33 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
       end
     2: begin
         extname = sxpar(header, 'EXTNAME')
-        case extname of
+        switch extname of
           'Intensity': begin
               comp_aia_lct, wave=193, /load
               display_min = 1
               display_max = 5
               power = 0.5
               image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+              break
             end
           'Enhanced Intensity': begin
               comp_aia_lct, wave=193, /load
               image = _data
+              break
+            end
+          'Doppler Velocity': begin
+              restore, filepath('my_doppler_ct.sav', root=mg_src_root())
+              tvlct, r, g, b
+
+              display_min = -10
+              display_max = 10
+              image = bytscl(data, min=display_min, max=display_max, top=253)
+              good_values = where(finite(data), $
+                                  ncomplement=n_bad_values, complement=bad_values)
+              if (n_bad_values gt 0) then image[bad_values] = 254
+
+              image = congrid(image, dims[0], dims[1])
+              break
             end
           'Corrected LOS velocity': begin
               restore, filepath('my_doppler_ct.sav', root=mg_src_root())
@@ -514,36 +545,41 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               if (n_bad_values gt 0) then image[bad_values] = 254
 
               fits_open, filename, fcb
-              fits_read, fcb, primary_data, primary_header, exten_no=0
               fits_read, fcb, intensity, intensity_header, extname='Intensity'
               fits_close, fcb
 
               thresh_unmasked = where(intensity le 1, n_thresh_unmasked)
               image[thresh_unmasked] = 254
               image = congrid(image, dims[0], dims[1])
+              break
             end
           'Line Width': begin
               loadct, 4, /silent
               display_min = 25
               display_max = 55
               image = bytscl(_data, min=display_min, max=display_max, top=254)
+              break
             end
           'Integrated Stokes Q': begin
               loadct, 0, /silent
               image = bytscl(_data)
+              break
             end
           'Integrated Stokes U': begin
               loadct, 0, /silent
               image = bytscl(_data)
+              break
             end
+          'Linear Polarization':
           'Total Linear Polarization': begin
               loadct, 0, /silent
               display_min = -2.3
               display_max = -0.3
               image = bytscl(alog10(_data), min=display_min, max=display_max, /nan)
+              break
             end
           else:
-        endcase
+        endswitch
       end
     else: message, 'unknown level'
   endcase
@@ -636,7 +672,7 @@ end
 function comp_browser::annotate_available, data, header, filename=filename
   compile_opt strictarr
 
-  level = self->get_level(data, header)
+  level = self->get_level(data, header, filename=filename)
   return, level ge 1L
 end
 
