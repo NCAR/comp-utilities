@@ -261,7 +261,7 @@ pro comp_log_browser::handle_events, event
       end
     'list': begin
         date = (*self.dates)[event.index]
-        self.cidx_log_filename = filepath(date + '.log', subdir='cidx', root=self.log_dir)
+        self.cidx_log_filename = filepath(date + '.log', root=self.log_dir)
 
         self->reload_cidx
 
