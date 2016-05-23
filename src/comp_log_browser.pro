@@ -165,7 +165,7 @@ pro comp_log_browser::load_directory, dir
 
   if (file_test(dir, /directory)) then begin
     ; find available dates
-    cidx_logs = file_search(filepath('*.log', subdir='cidx', root=dir), count=n_logs)
+    cidx_logs = file_search(filepath('*.log', root=dir), count=n_logs)
     dates = strmid(file_basename(cidx_logs), 0, 8)
     widget_control, self.list, set_value=dates
 
