@@ -1,16 +1,21 @@
 #!/usr/bin/env python
 
 import argparse
+import os
 import re
 
 LEVELS = ['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL']
+LOG_DIR = '/hao/acos/comp/logs'
 
 
 def main():
     parser = argparse.ArgumentParser(description='Display/filter CoMP log file')
     parser.add_argument('logfile', help='CoMP log filename')
-    parser.add_argument('-l', '--level', help='filter level: DEBUG INFO WARN ERROR CRITICAL (default DEBUG)')
+    parser.add_argument('-l', '--level',
+                        help='filter level: DEBUG INFO WARN ERROR CRITICAL (default DEBUG)')
     args = parser.parse_args()
+
+    logfile = args.logfile if args.logfile.endswith('.log') else os.path.join(LOG_DIR, args.logfile + '.log')
 
     # default is to not filter
     level = args.level.upper() if args.level else 'DEBUG'
@@ -26,7 +31,7 @@ def main():
     pattern = '.*(%s):.*' % level_filter
     prog = re.compile(pattern)
 
-    with open(args.logfile, 'r') as f:
+    with open(logfile, 'r') as f:
         for line in f.read().split('\n'):
             if prog.match(line):
                 print(line)
