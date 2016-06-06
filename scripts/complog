@@ -10,15 +10,31 @@ LOG_DIR = '/hao/acos/comp/logs'
 
 def main():
     parser = argparse.ArgumentParser(description='Display/filter CoMP log file')
-    parser.add_argument('logfile', help='CoMP log filename')
+    parser.add_argument('logfile', help='CoMP log filename or date')
     parser.add_argument('-l', '--level',
                         help='filter level: DEBUG INFO WARN ERROR CRITICAL (default DEBUG)')
+    parser.add_argument('-d', '--debug', help='DEBUG filter level', action='store_true')
+    parser.add_argument('-i', '--info', help='INFO filter level', action='store_true')
+    parser.add_argument('-w', '--warn', help='WARN filter level', action='store_true')
+    parser.add_argument('-e', '--error', help='ERROR filter level', action='store_true')
+    parser.add_argument('-c', '--critical', help='CRITICAL filter level', action='store_true')
     args = parser.parse_args()
 
     logfile = args.logfile if args.logfile.endswith('.log') else os.path.join(LOG_DIR, args.logfile + '.log')
 
     # default is to not filter
-    level = args.level.upper() if args.level else 'DEBUG'
+    if args.level:
+        level = args.level.upper()
+    elif args.critical:
+        level = 'CRITICAL'
+    elif args.error:
+        level = 'ERROR'
+    elif args.warn:
+        level = 'WARN'
+    elif args.info:
+        level = 'INFO'
+    else:
+        level = 'DEBUG'
 
     try:
         level_index = LEVELS.index(level)
@@ -34,7 +50,10 @@ def main():
     with open(logfile, 'r') as f:
         for line in f.read().split('\n'):
             if prog.match(line):
-                print(line)
+                try:
+                    print(line)
+                except (IOError, KeyboardInterrupt):
+                    return
 
 
 if __name__ == '__main__':
