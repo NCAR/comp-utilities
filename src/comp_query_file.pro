@@ -58,6 +58,22 @@ pro comp_query_file, filename, $
   basename = file_basename(filename)
 
   fits_open, filename, fcb
+  if (n_elements(fcb) eq 0) then begin
+    type = 'INVALID'
+    group = !null
+    beam_state = !null
+    wavelength = !null
+    polarization_state = !null
+    exposures = !null
+    cover = !null
+    cal_polarizer = !null
+    cal_retarder = !null
+    observation_id = ''
+    observation_plan = ''
+    pol_angle = !null
+    return
+  endif
+
   n_extensions = fcb.nextend   ; number of images in file
 
   beam_state = intarr(n_extensions)

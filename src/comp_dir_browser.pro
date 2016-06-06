@@ -363,44 +363,53 @@ pro comp_dir_browser::load_datedir, datedir
               datetime_key[f] = ''
               type_key[f] = 4
             end
+          'INVALID': begin
+              files_info[f].type = 'invalid'
+              files_info[f].n_images = strtrim(n, 2)
+              files_info[f].time = ''
+              datetime_key[f] = ''
+              type_key[f] = -1
+            end
           else: begin
               self->set_status, string(type, file_basename(files[f]), $
                                        format='(%"unknown data file type %s for %s")')
             end
         endcase
 
-        exposures = exposures[uniq(exposures, sort(exposures))]
-        files_info[f].exposure = n_elements(exposures) gt 1L $
+        if (n gt 0L) then begin
+          exposures = exposures[uniq(exposures, sort(exposures))]
+          files_info[f].exposure = n_elements(exposures) gt 1L $
                                    ? (strjoin(string(exposures, format='(F0.1)'), ', ') + ' ms') $
                                    : (exposures gt 0. $
-                                        ? string(exposures, format='(%"%0.1f ms")') $
-                                        : '')
+                                      ? string(exposures, format='(%"%0.1f ms")') $
+                                      : '')
 
-        uniq_pol = pol[uniq(pol, sort(pol))]
-        pol_ind = where(uniq_pol ne '', n_valid_pol)
-        if (n_valid_pol eq 0L) then begin
-          files_info[f].pol_states = ''
-        endif else begin
-          files_info[f].pol_states = strjoin(strtrim(uniq_pol[pol_ind], 2), ', ')
-        endelse
+          uniq_pol = pol[uniq(pol, sort(pol))]
+          pol_ind = where(uniq_pol ne '', n_valid_pol)
+          if (n_valid_pol eq 0L) then begin
+            files_info[f].pol_states = ''
+          endif else begin
+            files_info[f].pol_states = strjoin(strtrim(uniq_pol[pol_ind], 2), ', ')
+          endelse
 
-        wave_ind = where(finite(wave), n_wave)
-        if (n_wave eq 0L) then begin
-          files_info[f].wavelengths = ''
-        endif else begin
-          wave = wave[wave_ind]
-          uniq_wave = wave[uniq(wave, sort(wave))]
-          files_info[f].wavelengths = strjoin(strtrim(uniq_wave, 2), ', ') + ' nm'
-        endelse
+          wave_ind = where(finite(wave), n_wave)
+          if (n_wave eq 0L) then begin
+            files_info[f].wavelengths = ''
+          endif else begin
+            wave = wave[wave_ind]
+            uniq_wave = wave[uniq(wave, sort(wave))]
+            files_info[f].wavelengths = strjoin(strtrim(uniq_wave, 2), ', ') + ' nm'
+          endelse
 
-        files_info[f].obs_plan = obs_plan
-        files_info[f].obs_id = obs_id
-        if (self.calibration) then begin
-          files_info[f].polarizer = polarizer ? 'IN' : ''
-          files_info[f].retarder = retarder ? 'IN' : ''
-          files_info[f].pol_angle = finite(pol_angle) $
+          files_info[f].obs_plan = obs_plan
+          files_info[f].obs_id = obs_id
+          if (self.calibration) then begin
+            files_info[f].polarizer = polarizer ? 'IN' : ''
+            files_info[f].retarder = retarder ? 'IN' : ''
+            files_info[f].pol_angle = finite(pol_angle) $
                                       ? string(pol_angle, format='(%"%7.1f")') $
                                       : ''
+          endif
         endif
       endfor
       ind = mg_sort(datetime_key, type_key)
@@ -441,7 +450,8 @@ pro comp_dir_browser::load_datedir, datedir
                          n_cols=n_cols, color=[230B, 255B, 230B]
     self->_table_colors, files_info, 'sigma', bcolors, $
                          n_cols=n_cols, color=[230B, 255B, 230B]
-
+    self->_table_colors, files_info, 'invalid', bcolors, $
+                         n_cols=n_cols, color=[255B, 0B, 0B]
 
     widget_control, self.table, background_color=bcolors
   endif
@@ -451,6 +461,23 @@ pro comp_dir_browser::load_datedir, datedir
 end
 
 
+;+
+; Set the background color for the cells with rows corresponding to `name`.
+;
+; :Params:
+;   files_info : in, required, type=array of structures
+;     the files information structure
+;   name : in, required, type=string
+;     name of the type of rows
+;   tcolors : in, out, required, type="bytarr(3, n_rows)"
+;     background colors
+;
+; :Keywords:
+;   n_cols : in, required, type=integer
+;     number of columns
+;   color : in, required, type=bytarr(3)
+;     color to use for these rows
+;-
 pro comp_dir_browser::_table_colors, files_info, name, tcolors, $
                                      n_cols=n_cols, color=color
   compile_opt strictarr
