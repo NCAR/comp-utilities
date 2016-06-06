@@ -497,7 +497,7 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
             end
           '1083' : begin
               display_min = 0
-              display_max = 12.0
+              display_max = 18.0
               power = 0.3
               image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
             end
