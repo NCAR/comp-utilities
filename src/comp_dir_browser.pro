@@ -398,7 +398,7 @@ pro comp_dir_browser::load_datedir, datedir
           endif else begin
             wave = wave[wave_ind]
             uniq_wave = wave[uniq(wave, sort(wave))]
-            files_info[f].wavelengths = strjoin(strtrim(uniq_wave, 2), ', ') + ' nm'
+            files_info[f].wavelengths = strtrim(n_elements(uniq_wave), 2) + ': ' + strjoin(strtrim(uniq_wave, 2), ', ') + ' nm'
           endelse
 
           files_info[f].obs_plan = obs_plan
