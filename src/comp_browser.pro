@@ -455,7 +455,7 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
     dims *= dimensions[0] / float(dims[0])
   endelse
 
-  _data = congrid(data, dims[0], dims[1], /interp)
+  _data = frebin(data, dims[0], dims[1])
 
   top = 250
 
