@@ -677,6 +677,50 @@ function comp_browser::annotate_available, data, header, filename=filename
 end
 
 
+;= event handling
+
+;+
+; Handle context menu events.
+;
+; Override this method if your subclass creates context menus in
+; `create_draw_contextmenu`.
+;
+; :Params:
+;   event : in, required, type=structure
+;     `WIDGET_CONTEXT` event
+;-
+pro comp_browser::handle_contextmenu_events, event
+  compile_opt strictarr
+
+  uname = widget_info(event.id, /uname)
+  self->datacoords_for_screen, self.contextmenu_loc[0], self.contextmenu_loc[1], $
+                               x=x, y=y
+
+  pol_state = strtrim(sxpar(*self.current_header, 'POLSTATE'), 2)
+  beam = sxpar(*self.current_header, 'BEAM')
+  comp_spectral_profile, self.current_filename, pol_state, beam, x, y, error=error
+  if (error ne 0) then begin
+    fmt = '(%"problem computing spectral profile for %s @ %s, beam: %d, x: %d, y: %d")'
+    self->set_status, string(file_basename(self.current_filename), $
+                             pol_state, beam, x, y, $
+                             format=fmt)
+  endif
+end
+
+
+;= widget lifecycle methods
+
+function comp_browser::create_draw_contextmenu, draw_id
+  compile_opt strictarr
+
+  context_base = widget_base(draw_id, /context_menu)
+  spectral_profile_button = widget_button(context_base, $
+                                          value='Plot spectral profile', $
+                                          uname='spectral_profile')
+  return, context_base
+end
+
+
 ;= lifecycle methods
 
 ;+
