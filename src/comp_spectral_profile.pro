@@ -42,7 +42,7 @@ pro comp_spectral_profile, filename, pol_state, beam, x, y, error=error
     last_ind = uniq_ind[i] + 1
   endfor
 
-  window, /free, xsize=600, ysize=250, $
+  window, /free, xsize=700, ysize=275, $
           title=string(file_basename(filename), format='(%"Spectral plot for %s")')
 
   device, get_decomposed=original_decomposed
@@ -50,6 +50,7 @@ pro comp_spectral_profile, filename, pol_state, beam, x, y, error=error
 
   plot, wavelengths, spectrum[nx / 2, ny / 2, *], xstyle=9, ystyle=8, /nodata, $
         yrange=[min(spectrum, max=max_spectrum), max_spectrum], $
+        xtitle='Wavelength (nm)', ytitle='Value', $
         title=string(file_basename(filename), pol_state, beam, x, y, $
                      format='(%"Spectrum for %s @ %s, beam %d, x:%d, y:%d")')
 
@@ -57,13 +58,8 @@ pro comp_spectral_profile, filename, pol_state, beam, x, y, error=error
   for i = 0L, nx - 1L do begin
     for j = 0L, ny - 1L do begin
       if ((i ne nx / 2) || (j ne ny / 2)) then begin
-        r = 200L * sqrt((nx / 2 - i)^2 + (ny / 2 - j)^2) / radius
-        color = r + r * 2L^8 + r * 2L^16
-        if (abs(nx / 2 - i) le nx / 4. && abs(ny / 2 - j) le ny / 4.) then begin
-          color = '909090'x
-        endif else begin
-          color = '404040'x
-        endelse
+        r = 128L * sqrt((nx / 2 - i)^2 + (ny / 2 - j)^2) / radius
+        color = long(r) * (1 + 2L^8 + 2L^16)
         oplot, wavelengths, spectrum[i, j, *], color=color
       endif
     endfor
@@ -77,8 +73,9 @@ pro comp_spectral_profile, filename, pol_state, beam, x, y, error=error
     original_ind = lindgen(n_elements(wavelengths))
   endelse
 
+  usersym, [-1, 1, 1, -1, -1], [1, 1, -1, -1, 1], /fill
   oplot, wavelengths[original_ind], (spectrum[nx / 2, ny / 2, *])[original_ind], $
-         psym=6, color='0000ff'x
+         psym=8, color='0000ff'x
 
   device, decomposed=original_decomposed
 end
