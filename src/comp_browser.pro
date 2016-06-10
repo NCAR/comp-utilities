@@ -634,7 +634,7 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
   crpix2 = (sxpar(header, 'CRPIX2') - 1.0) / dims[1]
   cradius = (sxpar(header, 'ORADIUS'))
 
-  t = findgen(360) * !dtor
+  t = findgen(361) * !dtor
   fx = dimensions[0] * (fradius / dims[0] * cos(t) + frpix1)
   fy = dimensions[1] * (fradius / dims[1] * sin(t) + frpix2)
 
