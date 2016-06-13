@@ -197,7 +197,7 @@ pro comp_dir_browser::load_directory, dirs
     widget_control, self.tlb, update=0
 
     ; add dir as root of tree
-    root = widget_tree(self.tree, value=dirname, /folder, $
+    root = widget_tree(self.tree, value=dirname, /folder, /expanded, $
                        uvalue=file_expand_path(dir), $
                        uname='root', $
                        tooltip=file_expand_path(dir))
