@@ -150,6 +150,8 @@ pro comp_dir_browser::load_directory, dirs
   compile_opt strictarr
   on_error, 2
 
+  t0 = systime(/seconds)
+
   raw_bmp = read_png(filepath('raw.png', root=mg_src_root()))
   raw_bmp = transpose(raw_bmp, [1, 2, 0])
 
@@ -172,42 +174,58 @@ pro comp_dir_browser::load_directory, dirs
 
     self->set_status, 'Loading ' + dirname + '...'
 
+    ; add subdirs of dir as nodes, uname='datedir'
+    datedirs = file_search(filepath('*', root=dir), /test_directory, $
+                           count=n_datedirs)
+
+    levels = lonarr(n_datedirs)
+    n_files = lonarr(n_datedirs)
+    for d = 0L, n_datedirs - 1L do begin
+      if ((d + 1) mod 10 eq 0) then begin
+        self->set_status, string(dirname, d + 1, n_datedirs, $
+                                 format='(%"Loading %s: %d/%d directories...")')
+      endif
+
+      levels[d] = comp_dir_browser_findlevel(datedirs[d], files=files, $
+                                             n_files=n_datedir_files)
+      n_files[d] = n_datedir_files
+    endfor
+
+    self->set_status, string(dirname, $
+                             format='(%"Finished loading %s, updating interface...")')
+
+    widget_control, self.tlb, update=0
+
     ; add dir as root of tree
     root = widget_tree(self.tree, value=dirname, /folder, $
                        uvalue=file_expand_path(dir), $
                        uname='root', $
                        tooltip=file_expand_path(dir))
 
-    ; add subdirs of dir as nodes, uname='datedir'
-    datedirs = file_search(filepath('*', root=dir), /test_directory, $
-                           count=n_datedirs)
-    widget_control, self.tree, update=0
     for d = 0L, n_datedirs - 1L do begin
-      if ((d + 1) mod 10 eq 0) then begin
-        widget_control, self.tree, update=1
-        self->set_status, string(dirname, d + 1, n_datedirs, $
-                                 format='(%"Loading %s: %d/%d directories...")')
-        widget_control, self.tree, update=0
-      endif
-      level = comp_dir_browser_findlevel(datedirs[d], files=files, n_files=n_files)
-      case level of
+      case levels[d] of
         -1: bitmap = bytarr(16, 16, 3)
         0: bitmap = raw_bmp
         1: bitmap = level1_bmp
         2: bitmap = level1_bmp
       endcase
+
+      ; TODO: not using BITMAP keyword right now because it slows the creating
+      ; of the tree nodes by a factor of 10 or more
       datedir = widget_tree(root, $
                             value=file_basename(datedirs[d]) $
-                                    + ' - ' + strtrim(n_files, 2) + ' files', $
-                            bitmap=bitmap, $
+                                    + ' - ' + strtrim(n_files[d], 2) + ' files', $
+                            ;bitmap=bitmap, $
                             uvalue=datedirs[d], $
                             uname='datedir', $
                             tooltip=file_expand_path(datedirs[d]))
     endfor
-    widget_control, self.tree, update=1
-
+    widget_control, self.tlb, update=1
   endforeach
 
+  t1 = systime(/seconds)
+
+  ;self->set_status, string(t1 - t0, format='(%"%0.1f seconds to load")')
   self->set_status, 'Ready'
 end
 
