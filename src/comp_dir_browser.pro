@@ -510,11 +510,14 @@ pro comp_dir_browser::handle_events, event
     'tlb': begin
         table_column_widths = widget_info(self.table, /column_widths)
 
+        toolbar = widget_info(self.tlb, find_by_uname='toolbar')
+
         tlb_geometry = widget_info(self.tlb, /geometry)
         content_base_geometry = widget_info(widget_info(self.tlb, /child), /geometry)
         tree_geometry = widget_info(self.tree, /geometry)
         table_geometry = widget_info(self.table, /geometry)
         statusbar_geometry = widget_info(self.statusbar, /geometry)
+        toolbarbar_geometry = widget_info(toolbar, /geometry)
 
         table_width = event.x - tree_geometry.scr_xsize $
                         - 2 * tlb_geometry.xpad $
@@ -525,7 +528,9 @@ pro comp_dir_browser::handle_events, event
         height = event.y - 3 * tlb_geometry.ypad $
                    - 2 * content_base_geometry.ypad $
                    - statusbar_geometry.scr_ysize $
-                   - 2 * statusbar_geometry.margin
+                   - 2 * statusbar_geometry.margin $
+                   - toolbarbar_geometry.scr_ysize $
+                   - 2 * toolbarbar_geometry.margin
 
         widget_control, self.tlb, update=0
 
@@ -563,6 +568,30 @@ pro comp_dir_browser::handle_events, event
             end
           else:
         endcase
+      end
+    'refresh': begin
+        print, 'refreshing...'
+      end
+    'filter_darks': begin
+        print, 'filter darks'
+      end
+    'filter_flats': begin
+        print, 'filter flats'
+      end
+    'filter_1074': begin
+        print, 'filter 1074'
+      end
+    'filter_1079': begin
+        print, 'filter 1079'
+      end
+    'filter_1083': begin
+        print, 'filter 1083'
+      end
+    'filter_backgrounds': begin
+        print, 'filter backgrounds'
+      end
+    'filter_level2': begin
+        print, 'filter level2'
       end
     'display_files': begin
         if (~obj_valid(self.file_browser)) then begin
@@ -627,6 +656,25 @@ pro comp_dir_browser::create_widgets
 
   self.tlb = widget_base(title=self.title, /column, /tlb_size_events, $
                          uvalue=self, uname='tlb')
+
+  bitmapdir = ['resource', 'bitmaps']
+  toolbar = widget_base(self.tlb, /toolbar, /row, uname='toolbar')
+  refresh_data = read_png(filepath('refresh.png', root=mg_src_root()))
+  refresh_data = transpose(refresh_data, [1, 2, 0])
+  refresh_data = congrid(refresh_data, 16, 16, 4, /interp)
+  refresh_button = widget_button(toolbar, /bitmap, uname='refresh', $
+                                 tooltip='Refresh', $
+                                 value=refresh_data)
+
+  filter_base = widget_base(toolbar, /nonexclusive, /row, xpad=0, ypad=0)
+  darks_button = widget_button(filter_base, value='Darks', uname='filter_darks')
+  flats_button = widget_button(filter_base, value='Flats', uname='filter_flats')
+  data_1074_button = widget_button(filter_base, value='1074', uname='filter_1074')
+  data_1079_button = widget_button(filter_base, value='1079', uname='filter_1079')
+  data_1083_button = widget_button(filter_base, value='1083', uname='filter_1083')
+  background_button = widget_button(filter_base, value='Backgrounds', uname='filter_backgrounds')
+  l2_button = widget_button(filter_base, value='Level 2', uname='filter_level2')
+  widget_control, filter_base, set_button=1
 
   ; content row
   content_base = widget_base(self.tlb, /row, xpad=0)
