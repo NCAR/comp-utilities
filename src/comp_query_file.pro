@@ -152,6 +152,7 @@ pro comp_query_file, filename, $
         || arg_present(group)) then begin
     for i = 0L, n_extensions - 1L do begin
       fits_read, fcb, data, header, /header_only, exten_no=i + 1L
+
       beam_state[i] = sxpar(header, 'BEAM', count=count)
       if (count eq 0L) then beam_state[i] = !values.f_nan
       wavelength[i] = sxpar(header, 'WAVELENG', count=count)
