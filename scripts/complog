@@ -47,13 +47,16 @@ def main():
     pattern = '.*(%s):.*' % level_filter
     prog = re.compile(pattern)
 
-    with open(logfile, 'r') as f:
-        for line in f.read().split('\n'):
-            if prog.match(line):
-                try:
-                    print(line)
-                except (IOError, KeyboardInterrupt):
-                    return
+    try:
+        with open(logfile, 'r') as f:
+            for line in f.read().split('\n'):
+                if prog.match(line):
+                    try:
+                        print(line)
+                    except (IOError, KeyboardInterrupt):
+                        return
+    except IOError:
+        print('Problem reading %s' % logfile)
 
 
 if __name__ == '__main__':
