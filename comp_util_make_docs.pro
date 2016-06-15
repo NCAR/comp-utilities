@@ -22,7 +22,7 @@ pro comp_util_make_docs, user=user
                             : 'api-docs', $
                           root=root), $
           title='CoMP utilities API documentation', $
-          subtitle='NCAR-HAO MLSO', $
+          subtitle='NCAR-HAO Mauna Loa Solar Observatory', $
           /embed, $
           statistics=keyword_set(user) eq 0, $
           /use_latex, $
