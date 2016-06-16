@@ -496,9 +496,16 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
             end
           '1083' : begin
-              display_min = 2.0
-              display_max = 10.0
+              pol_state = strtrim(sxpar(header, 'POLSTATE'), 2)
+              if (pol_state eq 'Q' || pol_state eq 'U' || pol_state eq 'V') then begin
+                display_min = 1.0
+                display_max = 4.0
+              endif else begin
+                display_min = 2.0
+                display_max = 10.0
+              endelse
               power = 0.3
+
               image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
             end
         endcase
