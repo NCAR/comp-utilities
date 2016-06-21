@@ -585,7 +585,37 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               image = bytscl(alog10(_data), min=display_min, max=display_max, /nan)
               break
             end
-          else:
+          else: begin
+              wave_type = self->get_wave_type(sxpar(header, 'WAVELENG'))
+              loadct, 3, /silent
+              case wave_type of
+                '1074' : begin
+                  display_min = 0.0
+                  display_max = 5.0
+                  power = 0.5
+                  image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+                end
+                '1079' : begin
+                  display_min = 0
+                  display_max = 3.5
+                  power = 0.5
+                  image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+                end
+                '1083' : begin
+                  pol_state = strtrim(sxpar(header, 'POLSTATE'), 2)
+                  if (pol_state eq 'Q' || pol_state eq 'U' || pol_state eq 'V') then begin
+                    display_min = 1.0
+                    display_max = 4.0
+                  endif else begin
+                    display_min = 2.0
+                    display_max = 10.0
+                  endelse
+                  power = 0.3
+
+                  image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+                end
+              endcase
+            end
         endswitch
       end
     else: message, 'unknown level'
