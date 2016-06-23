@@ -389,6 +389,7 @@ pro comp_dir_browser::load_datedir, datedir
               type_key[f] = -1
             end
           else: begin
+              files_info[f].type = 'unknown'
               self->set_status, string(type, file_basename(files[f]), $
                                        format='(%"unknown data file type %s for %s")')
             end
