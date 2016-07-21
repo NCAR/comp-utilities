@@ -43,18 +43,31 @@ def main():
         parser.print_help()
         return
 
-    level_filter = '|'.join(LEVELS[level_index:])
-    pattern = '.*(%s):.*' % level_filter
-    prog = re.compile(pattern)
+    loglevel_filter = '|'.join(LEVELS[level_index:])
+    loglevel_prog = re.compile('.*(%s):.*' % loglevel_filter)
+    logstart_prog = re.compile('\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}')
+
+    matched_last_line = False
 
     try:
         with open(logfile, 'r') as f:
             for line in f.read().split('\n'):
-                if prog.match(line):
+                if loglevel_prog.match(line):
+                    matched_last_line = True
                     try:
                         print(line)
                     except (IOError, KeyboardInterrupt):
                         return
+                else:
+                    if matched_last_line:
+                        if logstart_prog.match(line):
+                            matched_last_line = False
+                        else:
+                            try:
+                                print(line)
+                            except (IOError, KeyboardInterrupt):
+                                return
+
     except IOError:
         print('Problem reading %s' % logfile)
 
