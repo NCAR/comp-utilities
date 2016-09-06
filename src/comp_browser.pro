@@ -68,6 +68,7 @@ function comp_browser::get_level, data, header, filename=filename
       'U': 
       'Linear Polarization':
       'Azimuth':
+      'Radial Azimuth':
       'Doppler Velocity': begin
           return, 2
         end
