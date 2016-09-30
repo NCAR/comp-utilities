@@ -522,6 +522,11 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
               break
             end
+          'Radial Azimuth': begin
+              loadct, 6, /silent
+              image = _data
+              break
+            end
           'Enhanced Intensity': begin
               comp_aia_lct, wave=193, /load
               image = _data
