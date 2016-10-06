@@ -145,10 +145,16 @@ end
 ; :Params:
 ;   dirs : in, required, type=string/strarr
 ;     root directory/directories to load
+;
+; :Keywords:
+;   filter : in, optional, type=string, default='*'
+;     filter on date directory names to show
 ;-
-pro comp_dir_browser::load_directory, dirs
+pro comp_dir_browser::load_directory, dirs, filter=filter
   compile_opt strictarr
   on_error, 2
+
+  _filter = n_elements(filter) eq 0L ? '*' : filter
 
   t0 = systime(/seconds)
 
@@ -175,7 +181,8 @@ pro comp_dir_browser::load_directory, dirs
     self->set_status, 'Loading ' + dirname + '...'
 
     ; add subdirs of dir as nodes, uname='datedir'
-    datedirs = file_search(filepath('*', root=dir), /test_directory, $
+    datedirs = file_search(filepath(_filter, root=dir), $
+                           /test_directory, $
                            count=n_datedirs)
 
     levels = lonarr(n_datedirs)
@@ -396,12 +403,17 @@ pro comp_dir_browser::load_datedir, datedir
         endcase
 
         if (n gt 0L) then begin
-          exposures = exposures[uniq(exposures, sort(exposures))]
-          files_info[f].exposure = n_elements(exposures) gt 1L $
-                                   ? (strjoin(string(exposures, format='(F0.1)'), ', ') + ' ms') $
-                                   : (exposures gt 0. $
-                                      ? string(exposures, format='(%"%0.1f ms")') $
-                                      : '')
+          exposures_ind = where(finite(exposures), n_exposures)
+          if (n_exposures gt 0L) then begin
+            exposures = exposures[exposures_ind]
+            exposures = exposures[uniq(exposures, sort(exposures))]
+            n_exposures = n_elements(exposures)
+          endif
+          case n_exposures of
+            0: files_info[f].exposure = ''
+            1: files_info[f].exposure = string(exposures[0], format='(%"%0.1f ms")')
+            else: files_info[f].exposure = strjoin(string(exposures, format='(F0.1)'), ', ') + ' ms'
+          endcase
 
           uniq_pol = pol[uniq(pol, sort(pol))]
           pol_ind = where(uniq_pol ne '', n_valid_pol)
@@ -859,7 +871,7 @@ end
 ;     set to display calibration related fields; only valid on newly created
 ;     CoMP data browsers
 ;-
-pro comp_dir_browser, pdirectory, directory=kdirectory, calibration=calibration
+pro comp_dir_browser, pdirectory, directory=kdirectory, calibration=calibration, filter=filter
   compile_opt strictarr
   on_error, 2
   common comp_dir_browser, browser
@@ -872,7 +884,7 @@ pro comp_dir_browser, pdirectory, directory=kdirectory, calibration=calibration
   if (~obj_valid(browser)) then begin
     browser = obj_new('comp_dir_browser', calibration=calibration)
   endif
-  browser->load_directory, _dir
+  browser->load_directory, _dir, filter=filter
 end
 
 

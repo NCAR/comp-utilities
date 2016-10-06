@@ -115,7 +115,8 @@ pro comp_query_file, filename, $
       endif
       polarization_state[i] = strcompress(sxpar(header, 'POLSTATE', count=count), /remove_all)
       if (count eq 0L) then polarization_state[i] = ''
-      exposures[i] = sxpar(header, 'EXPOSURE')
+      exposures[i] = sxpar(header, 'EXPOSURE', count=count)
+      if (count eq 0L) then exposures[i] = !values.f_nan
     endfor
   endif
 
