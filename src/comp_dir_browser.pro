@@ -203,20 +203,21 @@ pro comp_dir_browser::load_directory, dirs, filter=filter
 
     widget_control, self.tlb, update=0
 
+    case levels[0] of
+      -1: bitmap = bytarr(16, 16, 3)
+      0: bitmap = raw_bmp
+      1: bitmap = level1_bmp
+      2: bitmap = level1_bmp
+    endcase
+
     ; add dir as root of tree
     root = widget_tree(self.tree, value=dirname, /folder, /expanded, $
                        uvalue=file_expand_path(dir), $
+                       bitmap=bitmap, $
                        uname='root', $
                        tooltip=file_expand_path(dir))
 
     for d = 0L, n_datedirs - 1L do begin
-      case levels[d] of
-        -1: bitmap = bytarr(16, 16, 3)
-        0: bitmap = raw_bmp
-        1: bitmap = level1_bmp
-        2: bitmap = level1_bmp
-      endcase
-
       ; TODO: not using BITMAP keyword right now because it slows the creating
       ; of the tree nodes by a factor of 10 or more
       datedir = widget_tree(root, $
