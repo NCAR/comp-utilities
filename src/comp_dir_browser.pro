@@ -149,8 +149,10 @@ end
 ; :Keywords:
 ;   filter : in, optional, type=string, default='*'
 ;     filter on date directory names to show
+;   directory_id : in, optional, type=long
+;     if present, use this widget ID as the tree widget node for the directory
 ;-
-pro comp_dir_browser::load_directory, dirs, filter=filter
+pro comp_dir_browser::load_directory, dirs, filter=filter, directory_id=directory_id
   compile_opt strictarr
   on_error, 2
 
@@ -164,7 +166,7 @@ pro comp_dir_browser::load_directory, dirs, filter=filter
   level1_bmp = read_png(filepath('level1.png', root=mg_src_root()))
   level1_bmp = transpose(level1_bmp, [1, 2, 0])
 
-  foreach dir, dirs do begin
+  foreach dir, dirs, di do begin
     if (~file_test(dir, /directory)) then begin
       message, 'not directory: ' + dir
     endif
@@ -187,6 +189,7 @@ pro comp_dir_browser::load_directory, dirs, filter=filter
 
     levels = lonarr(n_datedirs)
     n_files = lonarr(n_datedirs)
+
     for d = 0L, n_datedirs - 1L do begin
       if ((d + 1) mod 10 eq 0) then begin
         self->set_status, string(dirname, d + 1, n_datedirs, $
@@ -211,11 +214,22 @@ pro comp_dir_browser::load_directory, dirs, filter=filter
     endcase
 
     ; add dir as root of tree
-    root = widget_tree(self.tree, value=dirname, /folder, /expanded, $
-                       uvalue=file_expand_path(dir), $
-                       bitmap=bitmap, $
-                       uname='root', $
-                       tooltip=file_expand_path(dir))
+    if (n_elements(directory_id) gt 0L) then begin
+      root = directory_id[di]
+
+      ; eliminate existing directories
+      n_old_datedirs = widget_info(directory_id[di], /n_children)
+      all_datedirs = widget_info(directory_id[di], /all_children)
+      for c = 0L, n_old_datedirs - 1L do begin
+        widget_control, all_datedirs[c], /destroy
+      endfor
+    endif else begin
+      root = widget_tree(self.tree, value=dirname, /folder, /expanded, $
+                         uvalue={fullpath: file_expand_path(dir), filter: _filter}, $
+                         bitmap=bitmap, $
+                         uname='root', $
+                         tooltip=file_expand_path(dir))
+    endelse
 
     for d = 0L, n_datedirs - 1L do begin
       ; TODO: not using BITMAP keyword right now because it slows the creating
@@ -245,18 +259,24 @@ end
 ;   datedir : in, required, type=string
 ;     directory with name of the form YYYYMMDD which contains CoMP
 ;     data files
+;
+; :Keywords:
+;   reload : in, optional, type=boolean
+;     set to reload a datedir and not use the cache
 ;-
-pro comp_dir_browser::load_datedir, datedir
+pro comp_dir_browser::load_datedir, datedir, reload=reload
   compile_opt strictarr
 
-  if (self.inventories->hasKey(datedir)) then begin
+  if (self.inventories->hasKey(datedir) && ~keyword_set(reload)) then begin
     files_info = (self.inventories)[datedir]
 
     *(self.files) = (self.files_cache)[datedir]
     n_files = n_elements(*(self.files))
     n_images = total(long(files_info.n_images), /integer)
   endif else begin
-    self->set_status, 'Loading ' + datedir + '...'
+    loading_verb = keyword_set(reload) ? 'Reloading' : 'Loading'
+
+    self->set_status, loading_verb + ' ' + datedir + '...'
 
     files = file_search(datedir, '*.fts*', count=n_files, /fold_case)
 
@@ -275,8 +295,8 @@ pro comp_dir_browser::load_datedir, datedir
 
       for f = 0L, n_files - 1L do begin
         if ((f + 1) mod 10 eq 0) then begin
-          self->set_status, string(datedir, f + 1, n_files, $
-                                   format='(%"Loading %s: %d/%d files...")')
+          self->set_status, string(loading_verb, datedir, f + 1, n_files, $
+                                   format='(%"%s %s: %d/%d files...")')
         endif
 
         ; set time fields
@@ -602,7 +622,24 @@ pro comp_dir_browser::handle_events, event
         endcase
       end
     'refresh': begin
-        print, 'refreshing...'
+        selected_id = widget_info(self.tree, /tree_select)
+        treenode_uname = widget_info(selected_id, /uname)
+        widget_control, selected_id, get_uvalue=treenode_uvalue
+        case treenode_uname of
+          'root': begin
+              ; reload directory list (throw out caches)
+              self->load_directory, treenode_uvalue.fullpath, $
+                                    filter=treenode_uvalue.filter, $
+                                    directory_id=selected_id
+            end
+          'datedir': begin
+              ; reload datedir (don't use cache)
+              self->load_datedir, treenode_uvalue, /reload
+            end
+          else: begin
+              self->set_status, 'invalid tree node uname: ' + treenode_uname
+            end
+        endcase
       end
     'filter_darks': begin
         print, 'filter darks'
@@ -643,8 +680,8 @@ pro comp_dir_browser::handle_events, event
                                  format=format)
       end
     'root': begin
-        widget_control, event.id, get_uvalue=full_path
-        self->set_status, full_path
+        widget_control, event.id, get_uvalue=s
+        self->set_status, s.fullpath
       end
     'datedir': begin
         widget_control, event.id, get_uvalue=datedir
