@@ -474,39 +474,7 @@ pro comp_dir_browser::load_datedir, datedir, reload=reload
     (self.inventories)[datedir] = files_info
   endelse
 
-  widget_control, self.table, set_value=files_info, ysize=n_files
-  if (n_files gt 0) then begin
-    n_cols = n_tags(self->comp_dir_browser_row())
-    bcolors = bytarr(3, n_files * n_cols)
-    bcolors[0, *] = 200
-    bcolors[1, *] = 200
-    bcolors[2, *] = 200
-
-    self->_table_colors, files_info, 'dark', bcolors, $
-                         n_cols=n_cols, color=bytarr(3) + 140B
-    self->_table_colors, files_info, 'flat', bcolors, $
-                         n_cols=n_cols, color=bytarr(3) + 160B
-    self->_table_colors, files_info, 'calibration', bcolors, $
-                         n_cols=n_cols, color=[255B, 255B, 200B]
-    self->_table_colors, files_info, 'background', bcolors, $
-                         n_cols=n_cols, color=bytarr(3) + 180B
-    self->_table_colors, files_info, 'dynamics', bcolors, $
-                         n_cols=n_cols, color=[255B, 200B, 200B]
-    self->_table_colors, files_info, 'polarization', bcolors, $
-                         n_cols=n_cols, color=[255B, 220B, 220B]
-    self->_table_colors, files_info, 'mean', bcolors, $
-                         n_cols=n_cols, color=[230B, 255B, 230B]
-    self->_table_colors, files_info, 'median', bcolors, $
-                         n_cols=n_cols, color=[230B, 255B, 230B]
-    self->_table_colors, files_info, 'quick_invert', bcolors, $
-                         n_cols=n_cols, color=[230B, 255B, 230B]
-    self->_table_colors, files_info, 'sigma', bcolors, $
-                         n_cols=n_cols, color=[230B, 255B, 230B]
-    self->_table_colors, files_info, 'invalid', bcolors, $
-                         n_cols=n_cols, color=[255B, 0B, 0B]
-
-    widget_control, self.table, background_color=bcolors
-  endif
+  self->filter_table
 
   self->set_status, string(n_images, n_files, $
                            format='(%"Loaded %d images in %d files")')
@@ -541,6 +509,101 @@ pro comp_dir_browser::_table_colors, files_info, name, tcolors, $
     tcolors[0, _ind] = color[0]
     tcolors[1, _ind] = color[1]
     tcolors[2, _ind] = color[2]
+  endif
+end
+
+
+;+
+; Filter the table according to the checkboxes about showing darks, flats, 1074,
+; 1079, 1083, backgrounds, and level 2 files.
+;-
+pro comp_dir_browser::filter_table
+  compile_opt strictarr
+
+  widget_control, self.current_datedir, get_uvalue=datedir
+
+  files_info = (self.inventories)[datedir]
+  n_files = n_elements(files_info)
+
+  if (n_files gt 0L) then begin
+    keep_type = bytarr(n_files)
+    if (self.show_darks) then keep_type or= files_info.type eq 'dark'
+    if (self.show_flats) then keep_type or= files_info.type eq 'flat'
+    if (self.show_data) then keep_type or= files_info.type eq 'data'
+    if (self.show_backgrounds) then keep_type or= files_info.type eq 'background'
+    if (self.show_level2) then begin
+      keep_type or= files_info.type eq 'dynamics' $
+                      or files_info.type eq 'polarization' $
+                      or files_info.type eq 'mean' $
+                      or files_info.type eq 'median' $
+                      or files_info.type eq 'sigma' $
+                      or files_info.type eq 'quick_invert'
+    endif
+
+    re = '.*: ([[:digit:].]+).*'
+    w = stregex(files_info.wavelengths, re, /extract, /subexpr)
+    w = reform(w[1, *])
+    central_wavelengths = [1074.62, 1079.8, 1083.0]
+    central_wavelengths = rebin(reform(central_wavelengths, $
+                                       3, $
+                                       1), $
+                                3, $
+                                n_elements(w))
+    w = rebin(reform(float(w), $
+                     1, $
+                     n_elements(w)), $
+              3, $
+              n_elements(w))
+
+    mins = min(abs(w - central_wavelengths), index, dimension=1)
+    wave_type = index mod 3
+
+    keep_wave = bytarr(n_files)
+    if (self.show_1074) then keep_wave or= wave_type eq 0
+    if (self.show_1079) then keep_wave or= wave_type eq 1
+    if (self.show_1083) then keep_wave or= wave_type eq 2
+
+    *self.current_filter = keep_type and keep_wave
+    ind = where(*self.current_filter, n_files)
+    if (n_files gt 0L) then begin
+      files_info = files_info[ind]
+    endif else begin
+      files_info = []
+    endelse
+  endif
+
+  widget_control, self.table, set_value=files_info, ysize=n_files
+  if (n_files gt 0) then begin
+    n_cols = n_tags(self->comp_dir_browser_row())
+    bcolors = bytarr(3, n_files * n_cols)
+    bcolors[0, *] = 200
+    bcolors[1, *] = 200
+    bcolors[2, *] = 200
+
+    self->_table_colors, files_info, 'dark', bcolors, $
+                         n_cols=n_cols, color=bytarr(3) + 140B
+    self->_table_colors, files_info, 'flat', bcolors, $
+                         n_cols=n_cols, color=bytarr(3) + 160B
+    self->_table_colors, files_info, 'calibration', bcolors, $
+                         n_cols=n_cols, color=[255B, 255B, 200B]
+    self->_table_colors, files_info, 'background', bcolors, $
+                         n_cols=n_cols, color=bytarr(3) + 180B
+    self->_table_colors, files_info, 'dynamics', bcolors, $
+                         n_cols=n_cols, color=[255B, 200B, 200B]
+    self->_table_colors, files_info, 'polarization', bcolors, $
+                         n_cols=n_cols, color=[255B, 220B, 220B]
+    self->_table_colors, files_info, 'mean', bcolors, $
+                         n_cols=n_cols, color=[230B, 255B, 230B]
+    self->_table_colors, files_info, 'median', bcolors, $
+                         n_cols=n_cols, color=[230B, 255B, 230B]
+    self->_table_colors, files_info, 'quick_invert', bcolors, $
+                         n_cols=n_cols, color=[230B, 255B, 230B]
+    self->_table_colors, files_info, 'sigma', bcolors, $
+                         n_cols=n_cols, color=[230B, 255B, 230B]
+    self->_table_colors, files_info, 'invalid', bcolors, $
+                         n_cols=n_cols, color=[255B, 0B, 0B]
+
+    widget_control, self.table, background_color=bcolors
   endif
 end
 
@@ -612,7 +675,9 @@ pro comp_dir_browser::handle_events, event
               widget_control, self.table, set_table_view=current_view
               self.selection = [event.sel_top, event.sel_bottom]
               if (event.sel_top eq event.sel_bottom) then begin
-                self->set_status, file_basename((*(self.files))[event.sel_top])
+                ind = where(*self.current_filter, n_files)
+                filename = ((*(self.files))[ind])[event.sel_top]
+                self->set_status, file_basename(filename)
               endif
             end
           'WIDGET_CONTEXT': begin
@@ -642,25 +707,36 @@ pro comp_dir_browser::handle_events, event
         endcase
       end
     'filter_darks': begin
-        print, 'filter darks'
+        self.show_darks = event.select
+        self->filter_table
       end
     'filter_flats': begin
-        print, 'filter flats'
+        self.show_flats = event.select
+        self->filter_table
       end
     'filter_1074': begin
-        print, 'filter 1074'
+        self.show_1074 = event.select
+        self->filter_table
       end
     'filter_1079': begin
-        print, 'filter 1079'
+        self.show_1079 = event.select
+        self->filter_table
       end
     'filter_1083': begin
-        print, 'filter 1083'
+        self.show_1083 = event.select
+        self->filter_table
+      end
+    'filter_data': begin
+        self.show_data = event.select
+        self->filter_table
       end
     'filter_backgrounds': begin
-        print, 'filter backgrounds'
+        self.show_backgrounds = event.select
+        self->filter_table
       end
     'filter_level2': begin
-        print, 'filter level2'
+        self.show_level2 = event.select
+        self->filter_table
       end
     'display_files': begin
         if (~obj_valid(self.file_browser)) then begin
@@ -668,7 +744,10 @@ pro comp_dir_browser::handle_events, event
           self.file_browser = mg_fits_browser(classname='comp_browser', $
                                               group_leader=self.tlb, /floating)
         endif
-        self.file_browser->load_files, (*(self.files))[self.selection[0]:self.selection[1]]
+
+        ind = where(*self.current_filter, n_files)
+        filenames = ((*(self.files))[ind])[self.selection[0]:self.selection[1]]
+        self.file_browser->load_files, filenames
       end
     'compute_totals': begin
         widget_control, self.table, get_value=files_info
@@ -684,6 +763,7 @@ pro comp_dir_browser::handle_events, event
         self->set_status, s.fullpath
       end
     'datedir': begin
+        self.current_datedir = event.id
         widget_control, event.id, get_uvalue=datedir
         self->load_datedir, datedir
       end
@@ -735,15 +815,21 @@ pro comp_dir_browser::create_widgets
                                  tooltip='Refresh', $
                                  value=refresh_data)
 
-  filter_base = widget_base(toolbar, /nonexclusive, /row, xpad=0, ypad=0)
-  darks_button = widget_button(filter_base, value='Darks', uname='filter_darks')
-  flats_button = widget_button(filter_base, value='Flats', uname='filter_flats')
-  data_1074_button = widget_button(filter_base, value='1074', uname='filter_1074')
-  data_1079_button = widget_button(filter_base, value='1079', uname='filter_1079')
-  data_1083_button = widget_button(filter_base, value='1083', uname='filter_1083')
-  background_button = widget_button(filter_base, value='Backgrounds', uname='filter_backgrounds')
-  l2_button = widget_button(filter_base, value='Level 2', uname='filter_level2')
-  widget_control, filter_base, set_button=1
+  filter_type_base = widget_base(toolbar, /nonexclusive, /row, xpad=10, ypad=0, frame=1)
+  darks_button = widget_button(filter_type_base, value='Darks', uname='filter_darks')
+  flats_button = widget_button(filter_type_base, value='Flats', uname='filter_flats')
+  data_button = widget_button(filter_type_base, value='Data', uname='filter_data')
+  background_button = widget_button(filter_type_base, value='Backgrounds', uname='filter_backgrounds')
+  l2_button = widget_button(filter_type_base, value='Level 2', uname='filter_level2')
+
+  widget_control, filter_type_base, set_button=1
+
+  filter_wave_base = widget_base(toolbar, /nonexclusive, /row, xpad=10, ypad=0, frame=1)
+  data_1074_button = widget_button(filter_wave_base, value='1074', uname='filter_1074')
+  data_1079_button = widget_button(filter_wave_base, value='1079', uname='filter_1079')
+  data_1083_button = widget_button(filter_wave_base, value='1083', uname='filter_1083')
+
+  widget_control, filter_wave_base, set_button=1
 
   ; content row
   content_base = widget_base(self.tlb, /row, xpad=0)
@@ -826,7 +912,7 @@ end
 pro comp_dir_browser::cleanup
   compile_opt strictarr
 
-  ptr_free, self.files
+  ptr_free, self.files, self.current_filter
   obj_destroy, [self.file_browser, self.inventories, self.files_cache]
 end
 
@@ -862,7 +948,17 @@ function comp_dir_browser::init, directory=directory, tlb=tlb, $
 
   self->set_status, 'Ready'
 
-  tlb = self.tlb
+  self.current_filter = ptr_new(/allocate_heap)
+  self.show_darks = 1B
+  self.show_flats = 1
+  self.show_1074 = 1B
+  self.show_1079 = 1B
+  self.show_1083 = 1B
+  self.show_data = 1B
+  self.show_backgrounds = 1B
+  self.show_level2 = 1B
+
+  if (arg_present(tlb)) then tlb = self.tlb
   self.files = ptr_new(/allocate_heap)
 
   if (n_elements(directory) gt 0L) then self->load_directory, directory
@@ -882,7 +978,17 @@ pro comp_dir_browser__define
              date_dir: '', $
              tlb: 0L, $
              tree: 0L, $
+             current_datedir: 0L, $
+             current_filter: ptr_new(), $
              table: 0L, $
+             show_darks: 0B, $
+             show_flats: 0B, $
+             show_1074: 0B, $
+             show_1079: 0B, $
+             show_1083: 0B, $
+             show_data: 0B, $
+             show_backgrounds: 0B, $
+             show_level2: 0B, $
              context_base: 0L, $
              statusbar: 0L, $
              title: '', $
