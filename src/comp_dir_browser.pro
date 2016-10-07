@@ -563,6 +563,10 @@ pro comp_dir_browser::filter_table
     if (self.show_1079) then keep_wave or= wave_type eq 1
     if (self.show_1083) then keep_wave or= wave_type eq 2
 
+    ; L1 flat and dark files are considered all wave types
+    keep_wave or= file_basename(*(self.files)) eq 'flat.fts' $
+                    or file_basename(*(self.files)) eq 'dark.fts'
+
     *self.current_filter = keep_type and keep_wave
     ind = where(*self.current_filter, n_files)
     if (n_files gt 0L) then begin
