@@ -524,7 +524,7 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
             end
           'Radial Azimuth': begin
               loadct, 6, /silent
-              image = _data
+              image = bytscl(_data, min=0.0, max=180.0)
               break
             end
           'Enhanced Intensity': begin
