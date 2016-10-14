@@ -523,8 +523,18 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               break
             end
           'Radial Azimuth': begin
-              loadct, 6, /silent
-              image = bytscl(_data, min=0.0, max=180.0)
+              loadct, 6, /silent, ncolors=255
+              tvlct, r, g, b, /get
+              r = shift(r, 128)
+              g = shift(g, 128)
+              b = shift(b, 128)
+              tvlct, r, g, b
+              tvlct, 128B, 128B, 128B, 255L   ; bad values are grey
+
+              bad_ind = where(_data lt -90.0, n_bad_ind)
+              image = bytscl(_data, min=0.0, max=180.0, top=254)
+              image[bad_ind] = 255B
+
               break
             end
           'Enhanced Intensity': begin
