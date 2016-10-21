@@ -523,17 +523,19 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               break
             end
           'Radial Azimuth': begin
-              loadct, 6, /silent, ncolors=255
+              ncolors = 255
+              loadct, 6, /silent, ncolors=ncolors
               tvlct, r, g, b, /get
-              r = shift(r, 128)
-              g = shift(g, 128)
-              b = shift(b, 128)
+              r[0:ncolors - 1] = shift(r[0:ncolors - 1], ncolors / 2)
+              g[0:ncolors - 1] = shift(g[0:ncolors - 1], ncolors / 2)
+              b[0:ncolors - 1] = shift(b[0:ncolors - 1], ncolors / 2)
               tvlct, r, g, b
-              tvlct, 128B, 128B, 128B, 255L   ; bad values are grey
+              ;tvlct, 128B, 128B, 128B, 255L   ; bad values are grey
+              tvlct, 0B, 0B, 0B, 255L   ; bad values are black
 
               bad_ind = where(_data lt -90.0, n_bad_ind)
-              image = bytscl(_data, min=0.0, max=180.0, top=254)
-              image[bad_ind] = 255B
+              image = bytscl(_data, min=-90.0, max=90.0, top=ncolors - 1)
+              if (n_bad_ind gt 0L) then image[bad_ind] = 255B
 
               break
             end
