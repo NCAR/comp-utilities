@@ -762,6 +762,23 @@ pro comp_dir_browser::handle_events, event
                                  n_files, $
                                  format=format)
       end
+    'average_files': begin
+        ind = where(*self.current_filter, n_files)
+        filenames = ((*(self.files))[ind])[self.selection[0]:self.selection[1]]
+
+        dir_node = widget_info(self.current_datedir, /parent)
+        widget_control, dir_node, get_uvalue=uvalue
+
+        full_filenames = filepath(filenames, root=uvalue.fullpath)
+        state = comp_average_dialog(full_filenames, dialog_parent=self.tlb, $
+                                    output_filename=output_filename, $
+                                    method=method)
+        if (state) then begin
+          method_name = method ? 'Median' : 'Mean'
+          self->set_status, string(method_name, n_elements(filenames), output_filename, $
+                                   format='(%"%s from %d files is in %s")')
+        endif
+      end
     'root': begin
         widget_control, event.id, get_uvalue=s
         self->set_status, s.fullpath
@@ -878,6 +895,8 @@ pro comp_dir_browser::create_widgets
                                  uname='display_files')
   compute_button = widget_button(self.context_base, value='Compute totals', $
                                  uname='compute_totals')
+  average_button = widget_button(self.context_base, value='Average files', $
+                                 uname='average_files')
 
   self.statusbar = widget_label(self.tlb, $
                                 scr_xsize=tree_xsize + table_xsize + xpad, $
