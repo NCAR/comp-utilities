@@ -1,5 +1,16 @@
 ; docformat = 'rst'
 
+;+
+; Dialog to show options for computing an average of the files passed to it.
+;-
+
+;+
+; Event handler.
+;
+; :Params:
+;   event : in, required, type=structure
+;     event structure
+;-
 pro comp_average_dialog_handleevents, event
   compile_opt strictarr
 
@@ -16,6 +27,7 @@ pro comp_average_dialog_handleevents, event
                                           default_extension='.fts', path=cwd)
 
         if (output_filename ne '') then begin
+          output_filename = expand_path(output_filename)
           widget_control, file_text, set_value=output_filename
           (*pstate).output_filename = output_filename
         endif
@@ -24,15 +36,39 @@ pro comp_average_dialog_handleevents, event
     'run' : begin
         (*pstate).run = 1B
 
+        ; produce result
+        comp_compute_average, (*pstate).filenames, (*pstate).method, $
+                              output_filename=(*pstate).output_filename
+
+        ; display result
+        comp_browser, (*pstate).output_filename
+
         widget_control, event.top, /destroy
       end
-    'cancel' : begin
-        widget_control, event.top, /destroy
-      end
+    'cancel' : widget_control, event.top, /destroy
   endcase
 end
 
 
+;+
+; Launch dialog which allows user to select options for calculating average
+; result file.
+;
+; :Returns:
+;   1 if result produced, 0 if cancelled
+;
+; :Params:
+;   filenames : in, required, type=string/strarr
+;     filenames to average together
+;
+; :Keywords:
+;   dialog_parent : in, optional, type=long
+;     widget identifier of parent widget
+;   output_filename : out, optional, type=string
+;     filename of output average file, empty string if cancelled
+;   method : out, optional, type=long
+;     index of averaging method: 0 for mean, 1 for median
+;-
 function comp_average_dialog, filenames, dialog_parent=dialog_parent, $
                               output_filename=output_filename, method=method
   compile_opt strictarr
@@ -59,7 +95,7 @@ function comp_average_dialog, filenames, dialog_parent=dialog_parent, $
   method_combobox = widget_combobox(method_row, value=['Mean', 'Median'], $
                                     uname='method')
 
-  run_row = widget_base(tlb, /row)
+  run_row = widget_base(tlb, /row, /base_align_center)
   run_button = widget_button(run_row, value='Run', uname='run', scr_xsize=100)
   cancel_button = widget_button(run_row, value='Cancel', uname='cancel', scr_xsize=100)
 
