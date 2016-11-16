@@ -147,6 +147,11 @@ pro comp_compute_average, files, method, output_filename=output_filename, $
   num_back_averaged = lonarr(n_waves)
   average_times = strarr(2, n_stokes, n_waves)
 
+  p = mg_progress(indgen(n_waves * total(numof_stokes, /integer)), $
+                  title='Averaging...', $
+                  /manual, $
+                  label_widget=label_widget)
+
   for ist = 0L, n_stokes - 1L do begin
     if (numof_stokes[ist] eq 0) then continue
     for iw = 0L, n_waves - 1L do begin
@@ -156,11 +161,6 @@ pro comp_compute_average, files, method, output_filename=output_filename, $
                     numof_stokes[ist])
 
       header = !null
-      p = mg_progress(indgen(numof_stokes[ist]), $
-                      title=string(stokes[ist], waves[iw], $
-                                   format='(%"%s %0.2f")'), $
-                      /manual, $
-                      label_widget=label_widget)
       for ifile = 0L, numof_stokes[ist] - 1L do begin
         filename = files[which_file[ifile, ist]]
         name = file_basename(filename)
@@ -188,7 +188,6 @@ pro comp_compute_average, files, method, output_filename=output_filename, $
 
         p->advance
       endfor
-      obj_destroy, p
 
       sxaddpar, header, 'LEVEL   ', 'L2'
       ename = stokes[ist] + ', ' + string(format='(f7.2)', waves[iw])
@@ -240,6 +239,7 @@ pro comp_compute_average, files, method, output_filename=output_filename, $
       endcase
     endfor
   endfor
+  obj_destroy, p
 
   fits_close, output_fcb
 end
