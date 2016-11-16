@@ -669,20 +669,34 @@ pro comp_dir_browser::handle_events, event
         case tag_names(event, /structure_name) of
           'WIDGET_TABLE_CELL_SEL': begin
               table_geometry = widget_info(self.table, /geometry)
-              if (event.sel_top lt 0 || event.sel_bottom ge table_geometry.ysize) then return
+              if (event.sel_top lt 0 $
+                    || event.sel_bottom ge table_geometry.ysize) then return
+
+              selected = widget_info(self.table, /table_select)
+              rows = reform(selected[1, *])
+              rows = rows[uniq(rows, sort(rows))]
+              *self.selection = rows
+
+              n_rows = n_elements(*self.selection)
+              n_cols = n_elements(self->_colwidths())
+              full_cols = reform(rebin(reform(lindgen(n_cols), n_cols, 1), n_cols, n_rows), n_rows * n_cols)
+              full_rows = reform(rebin(reform(rows, 1, n_rows), n_cols, n_rows), n_rows * n_cols)
+
+              full_selection = transpose([[full_cols], [full_rows]])
+
               current_view = widget_info(self.table, /table_view)
               widget_control, self.table, $
-                              set_table_select=[0, $
-                                                event.sel_top, $
-                                                n_elements(self->_colwidths()) - 1L, $
-                                                event.sel_bottom]
+                              set_table_select=full_selection
               widget_control, self.table, set_table_view=current_view
-              self.selection = [event.sel_top, event.sel_bottom]
-              if (event.sel_top eq event.sel_bottom) then begin
+
+              if (n_elements(*self.selection) eq 1L) then begin
                 ind = where(*self.current_filter, n_files)
-                filename = ((*(self.files))[ind])[event.sel_top]
-                self->set_status, file_basename(filename)
-              endif
+                filename = ((*(self.files))[ind])[*self.selection]
+                self->set_status, file_basename(filename[0])
+              endif else begin
+                self->set_status, string(n_elements(*self.selection), $
+                                         format='(%"%d files selected")')
+              endelse
             end
           'WIDGET_CONTEXT': begin
               widget_displaycontextmenu, event.id, event.x, event.y, self.context_base
@@ -750,7 +764,7 @@ pro comp_dir_browser::handle_events, event
         endif
 
         ind = where(*self.current_filter, n_files)
-        filenames = ((*(self.files))[ind])[self.selection[0]:self.selection[1]]
+        filenames = ((*(self.files))[ind])[self.selection]
         self.file_browser->load_files, filenames
       end
     'compute_totals': begin
@@ -764,7 +778,7 @@ pro comp_dir_browser::handle_events, event
       end
     'average_files': begin
         ind = where(*self.current_filter, n_files)
-        filenames = ((*(self.files))[ind])[self.selection[0]:self.selection[1]]
+        filenames = ((*(self.files))[ind])[self.selection]
 
         dir_node = widget_info(self.current_datedir, /parent)
         widget_control, dir_node, get_uvalue=uvalue
@@ -888,6 +902,7 @@ pro comp_dir_browser::create_widgets
                             uname='table', $
                             /resizeable_columns, $
                             /all_events, $
+                            /disjoint_selection, $
                             /context_events)
 
   self.context_base = widget_base(self.table, /context_menu)
@@ -935,7 +950,7 @@ end
 pro comp_dir_browser::cleanup
   compile_opt strictarr
 
-  ptr_free, self.files, self.current_filter
+  ptr_free, self.files, self.current_filter, self.selection
   obj_destroy, [self.file_browser, self.inventories, self.files_cache]
 end
 
@@ -981,6 +996,8 @@ function comp_dir_browser::init, directory=directory, tlb=tlb, $
   self.show_backgrounds = 1B
   self.show_level2 = 1B
 
+  self.selection = ptr_new([])
+
   if (arg_present(tlb)) then tlb = self.tlb
   self.files = ptr_new(/allocate_heap)
 
@@ -1015,7 +1032,7 @@ pro comp_dir_browser__define
              context_base: 0L, $
              statusbar: 0L, $
              title: '', $
-             selection: lonarr(2), $
+             selection: ptr_new(), $
              files: ptr_new(), $
              file_browser: obj_new(), $
              inventories: obj_new(), $
