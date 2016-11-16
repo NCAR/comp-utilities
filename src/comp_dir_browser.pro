@@ -764,7 +764,7 @@ pro comp_dir_browser::handle_events, event
         endif
 
         ind = where(*self.current_filter, n_files)
-        filenames = ((*(self.files))[ind])[self.selection]
+        filenames = ((*(self.files))[ind])[*self.selection]
         self.file_browser->load_files, filenames
       end
     'compute_totals': begin
@@ -778,7 +778,7 @@ pro comp_dir_browser::handle_events, event
       end
     'average_files': begin
         ind = where(*self.current_filter, n_files)
-        filenames = ((*(self.files))[ind])[self.selection]
+        filenames = ((*(self.files))[ind])[*self.selection]
 
         dir_node = widget_info(self.current_datedir, /parent)
         widget_control, dir_node, get_uvalue=uvalue
