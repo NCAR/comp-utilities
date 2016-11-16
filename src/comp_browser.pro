@@ -747,6 +747,8 @@ end
 pro comp_browser::handle_contextmenu_events, event
   compile_opt strictarr
 
+  if (n_elements(*self.current_data) eq 0L) then return
+
   uname = widget_info(event.id, /uname)
   self->datacoords_for_screen, self.contextmenu_loc[0], self.contextmenu_loc[1], $
                                x=x, y=y
