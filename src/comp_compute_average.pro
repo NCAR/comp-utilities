@@ -12,11 +12,14 @@
 ; :Keywords:
 ;   output_filename : in, required, type=string
 ;     output filename
+;   label_widget : in, optional, type=long
+;     label widget to update with progress
 ;   error : out, optional, type=long
 ;     set to a named variable to retrieve error status: 0=no error, 1=differing
 ;     wave types
 ;-
 pro comp_compute_average, files, method, output_filename=output_filename, $
+                          label_widget=label_widget, $
                           error=error
   compile_opt strictarr
 
@@ -153,6 +156,11 @@ pro comp_compute_average, files, method, output_filename=output_filename, $
                     numof_stokes[ist])
 
       header = !null
+      p = mg_progress(indgen(numof_stokes[ist]), $
+                      title=string(stokes[ist], waves[iw], $
+                                   format='(%"%s %0.2f")'), $
+                      /manual, $
+                      label_widget=label_widget)
       for ifile = 0L, numof_stokes[ist] - 1L do begin
         filename = files[which_file[ifile, ist]]
         name = file_basename(filename)
@@ -177,7 +185,10 @@ pro comp_compute_average, files, method, output_filename=output_filename, $
         average_times[1, ist, iw] = strmid(name, 9, 6)
 
         fits_close, fcb
+
+        p->advance
       endfor
+      obj_destroy, p
 
       sxaddpar, header, 'LEVEL   ', 'L2'
       ename = stokes[ist] + ', ' + string(format='(f7.2)', waves[iw])

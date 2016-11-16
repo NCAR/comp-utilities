@@ -577,6 +577,7 @@ pro comp_dir_browser::filter_table
   endif
 
   widget_control, self.table, set_value=files_info, ysize=n_files
+  widget_control, self.table, set_table_select=[-1, -1]
   if (n_files gt 0) then begin
     n_cols = n_tags(self->comp_dir_browser_row())
     bcolors = bytarr(3, n_files * n_cols)
@@ -673,16 +674,11 @@ pro comp_dir_browser::handle_events, event
                     || event.sel_bottom ge table_geometry.ysize) then return
 
               selected = widget_info(self.table, /table_select)
+
               rows = reform(selected[1, *])
               rows = rows[uniq(rows, sort(rows))]
               *self.selection = rows
-
-              n_rows = n_elements(*self.selection)
-              n_cols = n_elements(self->_colwidths())
-              full_cols = reform(rebin(reform(lindgen(n_cols), n_cols, 1), n_cols, n_rows), n_rows * n_cols)
-              full_rows = reform(rebin(reform(rows, 1, n_rows), n_cols, n_rows), n_rows * n_cols)
-
-              full_selection = transpose([[full_cols], [full_rows]])
+              full_selection = transpose([[lonarr(n_elements(rows)) - 1L], [rows]])
 
               current_view = widget_info(self.table, /table_view)
               widget_control, self.table, $
@@ -786,7 +782,8 @@ pro comp_dir_browser::handle_events, event
         full_filenames = filepath(filenames, root=uvalue.fullpath)
         state = comp_average_dialog(full_filenames, dialog_parent=self.tlb, $
                                     output_filename=output_filename, $
-                                    method=method)
+                                    method=method, $
+                                    label_widget=self.statusbar)
         if (state) then begin
           method_name = method ? 'Median' : 'Mean'
           self->set_status, string(method_name, n_elements(filenames), output_filename, $

@@ -36,13 +36,6 @@ pro comp_average_dialog_handleevents, event
     'run' : begin
         (*pstate).run = 1B
 
-        ; produce result
-        comp_compute_average, (*pstate).filenames, (*pstate).method, $
-                              output_filename=(*pstate).output_filename
-
-        ; display result
-        comp_browser, (*pstate).output_filename
-
         widget_control, event.top, /destroy
       end
     'cancel' : widget_control, event.top, /destroy
@@ -68,9 +61,12 @@ end
 ;     filename of output average file, empty string if cancelled
 ;   method : out, optional, type=long
 ;     index of averaging method: 0 for mean, 1 for median
+;   label_widget : in, optional, type=long
+;     label widget to update with progress
 ;-
 function comp_average_dialog, filenames, dialog_parent=dialog_parent, $
-                              output_filename=output_filename, method=method
+                              output_filename=output_filename, method=method, $
+                              label_widget=label_widget
   compile_opt strictarr
 
   title = string(n_elements(filenames), $
@@ -95,7 +91,7 @@ function comp_average_dialog, filenames, dialog_parent=dialog_parent, $
   method_combobox = widget_combobox(method_row, value=['Mean', 'Median'], $
                                     uname='method')
 
-  run_row = widget_base(tlb, /row, /base_align_center)
+  run_row = widget_base(tlb, /row, /align_center)
   run_button = widget_button(run_row, value='Run', uname='run', scr_xsize=100)
   cancel_button = widget_button(run_row, value='Cancel', uname='cancel', scr_xsize=100)
 
@@ -107,6 +103,16 @@ function comp_average_dialog, filenames, dialog_parent=dialog_parent, $
   output_filename = (*pstate).output_filename
   run = (*pstate).run
   method = (*pstate).method
+
+  if (run) then begin
+    ; produce result
+    comp_compute_average, (*pstate).filenames, (*pstate).method, $
+                          output_filename=(*pstate).output_filename, $
+                          label_widget=label_widget
+
+    ; display result
+    comp_browser, (*pstate).output_filename
+  endif
 
   ptr_free, pstate
 
