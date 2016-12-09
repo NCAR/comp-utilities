@@ -3,10 +3,10 @@
 ;+
 ; Use IDLdoc to create API documentation for CoMP utilities.
 ;-
-pro comp_util_make_docs
+pro comp_util_make_userdocs
   compile_opt strictarr
 
-  user = 0B
+  user = 1B
 
   args = command_line_args(count=nargs)
   root = nargs gt 1L ? args[0] : mg_src_root()   ; location of this file
