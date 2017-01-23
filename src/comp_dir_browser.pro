@@ -293,12 +293,10 @@ pro comp_dir_browser::load_datedir, datedir, reload=reload
 
       files_info = replicate(self->comp_dir_browser_row(), n_files)
 
+      prog = mg_progress(files, $
+                         title=string(loading_verb, datedir, format='(%"%s %s")'), $
+                         label_widget=self.statusbar, /manual)
       for f = 0L, n_files - 1L do begin
-        if ((f + 1) mod 10 eq 0) then begin
-          self->set_status, string(loading_verb, datedir, f + 1, n_files, $
-                                   format='(%"%s %s: %d/%d files...")')
-        endif
-
         ; set time fields
         basename = file_basename(files[f])
         file_tokens = strsplit(basename, '.', /extract, count=n_files_tokens)
@@ -463,7 +461,11 @@ pro comp_dir_browser::load_datedir, datedir, reload=reload
                                       : ''
           endif
         endif
+        prog->advance
       endfor
+      prog->advance
+      obj_destroy, prog
+
       ind = mg_sort(datetime_key, type_key)
       files_info = files_info[ind]
       *(self.files) = files[ind]
