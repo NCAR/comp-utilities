@@ -800,6 +800,12 @@ pro comp_dir_browser::handle_events, event
         self.current_datedir = event.id
         widget_control, event.id, get_uvalue=datedir
         self->load_datedir, datedir
+        image_bmp = read_bmp(filepath('image.bmp', subdir=['resource', 'bitmaps']), r, g, b)
+        bmp = bytarr(16, 16, 3)
+        bmp[*, *, 0] = r[image_bmp]
+        bmp[*, *, 1] = g[image_bmp]
+        bmp[*, *, 2] = b[image_bmp]
+        widget_control, event.id, set_tree_bitmap=bmp
       end
     else:
   endcase
