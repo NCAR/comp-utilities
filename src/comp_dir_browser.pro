@@ -253,6 +253,231 @@ end
 
 
 ;+
+; Do the low level loading of a datedir.
+;
+; :Private:
+;
+; :Params:
+;   datedir : in, required, type=string
+;     directory with name of the form YYYYMMDD which contains CoMP
+;     data files
+;
+; :Keywords:
+;   reload : in, optional, type=boolean
+;     set to reload a datedir and not use the cache
+;   n_images : out, optional, type=integer
+;     set to a named variable to retrieve the number of images loaded
+;   n_files : out, optional, type=integer
+;     set to a named variable to retrieve the number of files loaded
+;-
+pro comp_dir_browser::_load_datedir, datedir, reload=reload, $
+                                     n_images=n_images, n_files=n_files
+  compile_opt strictarr
+
+  loading_verb = keyword_set(reload) ? 'Reloading' : 'Loading'
+
+  self->set_status, loading_verb + ' ' + datedir + '...'
+
+  files = file_search(datedir, '*.fts*', count=n_files, /fold_case)
+
+  *(self.files) = files
+  (self.files_cache)[datedir] = n_files eq 0L ? [] : files
+
+  if (n_files eq 0L) then begin
+    widget_control, self.table, ysize=0
+    files_info = {}
+    n_images = 0L
+  endif else begin
+    datetime_key = strarr(n_files)
+    type_key = lonarr(n_files)
+
+    files_info = replicate(self->comp_dir_browser_row(), n_files)
+
+    prog = mg_progress(files, $
+                       title=string(loading_verb, datedir, format='(%"%s %s")'), $
+                       label_widget=self.statusbar, /manual)
+    for f = 0L, n_files - 1L do begin
+      ; set time fields
+      basename = file_basename(files[f])
+      file_tokens = strsplit(basename, '.', /extract, count=n_files_tokens)
+      time = file_tokens[1]
+      time = strmid(time, 0, 2) $
+               + ':' + strmid(time, 2, 2) $
+               + ':' + strmid(time, 4, 2)
+
+      comp_query_file, files[f], $
+                       beam_state=beam, wavelength=wave, $
+                       polarization=pol, type=type, $
+                       exposures=exposures, cover=cover, $
+                       observation_id=obs_id, observation_plan=obs_plan, $
+                       cal_polarizer=polarizer, cal_retarder=retarder, $
+                       pol_angle=pol_angle
+
+      n = n_elements(pol)
+      case type of
+        'OPAL': begin
+            files_info[f].type = 'flat'
+            files_info[f].n_images = strtrim(n, 2)
+            if (basename eq 'flat.fts') then begin
+              files_info[f].time = ''
+              datetime_key[f] = ''
+              type_key[f] = 1
+            endif else begin
+              files_info[f].time = time
+              datetime_key[f] = strmid(basename, 0, 15)
+            endelse
+          end
+        'CALIBRATION': begin
+            files_info[f].type = 'calibration'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = time
+            datetime_key[f] = strmid(basename, 0, 15)
+          end
+        'DATA': begin
+            files_info[f].type = 'data'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = time
+            datetime_key[f] = strmid(basename, 0, 15)
+          end
+        'BACKGROUND': begin
+            files_info[f].type = 'background'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = time
+            type_key[f] = 1
+            datetime_key[f] = strmid(basename, 0, 15)
+          end
+        'DARK': begin
+            files_info[f].type = 'dark'
+            files_info[f].n_images = strtrim(n, 2)
+            if (basename eq 'dark.fts') then begin
+              files_info[f].time = ''
+              datetime_key[f] = ''
+              type_key[f] = 0
+            endif else begin
+              files_info[f].time = time
+              datetime_key[f] = strmid(basename, 0, 15)
+            endelse
+          end
+        'DYNAMICS': begin
+            files_info[f].type = 'dynamics'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = time
+            type_key[f] = 3
+            datetime_key[f] = strmid(basename, 0, 15)
+          end
+        'POLARIZATION': begin
+            files_info[f].type = 'polarization'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = time
+            type_key[f] = 4
+            datetime_key[f] = strmid(basename, 0, 15)
+          end
+        'INTENSITY': begin
+            files_info[f].type = 'intensity'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = time
+            type_key[f] = 2
+            datetime_key[f] = strmid(basename, 0, 15)
+          end
+        'MEAN': begin
+            files_info[f].type = 'mean'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = ''
+            datetime_key[f] = ''
+            type_key[f] = 2
+          end
+        'MEDIAN': begin
+            files_info[f].type = 'median'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = ''
+            datetime_key[f] = ''
+            type_key[f] = 3
+          end
+        'QUICK_INVERT': begin
+            files_info[f].type = 'quick_invert'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = ''
+            datetime_key[f] = ''
+            type_key[f] = 5
+          end
+        'SIGMA': begin
+            files_info[f].type = 'sigma'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = ''
+            datetime_key[f] = ''
+            type_key[f] = 4
+          end
+        'INVALID': begin
+            files_info[f].type = 'invalid'
+            files_info[f].n_images = strtrim(n, 2)
+            files_info[f].time = ''
+            datetime_key[f] = ''
+            type_key[f] = -1
+          end
+        else: begin
+          files_info[f].type = 'unknown'
+          self->set_status, string(type, file_basename(files[f]), $
+                                   format='(%"unknown data file type %s for %s")')
+        end
+      endcase
+
+      if (n gt 0L) then begin
+        exposures_ind = where(finite(exposures), n_exposures)
+        if (n_exposures gt 0L) then begin
+          exposures = exposures[exposures_ind]
+          exposures = exposures[uniq(exposures, sort(exposures))]
+          n_exposures = n_elements(exposures)
+        endif
+        case n_exposures of
+          0: files_info[f].exposure = ''
+          1: files_info[f].exposure = string(exposures[0], format='(%"%0.1f ms")')
+          else: files_info[f].exposure = strjoin(string(exposures, format='(F0.1)'), ', ') + ' ms'
+        endcase
+
+        uniq_pol = pol[uniq(pol, sort(pol))]
+        pol_ind = where(uniq_pol ne '', n_valid_pol)
+        if (n_valid_pol eq 0L) then begin
+          files_info[f].pol_states = ''
+        endif else begin
+          files_info[f].pol_states = strjoin(strtrim(uniq_pol[pol_ind], 2), ', ')
+        endelse
+
+        wave_ind = where(finite(wave), n_wave)
+        if (n_wave eq 0L) then begin
+          files_info[f].wavelengths = ''
+        endif else begin
+          wave = wave[wave_ind]
+          uniq_wave = wave[uniq(wave, sort(wave))]
+          files_info[f].wavelengths = strtrim(n_elements(uniq_wave), 2) + ': ' + strjoin(strtrim(uniq_wave, 2), ', ') + ' nm'
+        endelse
+        
+        files_info[f].obs_plan = obs_plan
+        files_info[f].obs_id = obs_id
+        if (self.calibration) then begin
+          files_info[f].polarizer = polarizer ? 'IN' : ''
+          files_info[f].retarder = retarder ? 'IN' : ''
+          files_info[f].pol_angle = finite(pol_angle) $
+                                      ? string(pol_angle, format='(%"%7.1f")') $
+                                      : ''
+        endif
+      endif
+      prog->advance
+    endfor
+    prog->advance
+    obj_destroy, prog
+
+    ind = mg_sort(datetime_key, type_key)
+    files_info = files_info[ind]
+    *(self.files) = files[ind]
+    (self.files_cache)[datedir] = files[ind]
+    n_images = total(long(files_info.n_images), /integer)
+  endelse
+
+  (self.inventories)[datedir] = files_info
+end
+
+
+;+
 ; Load a date directory.
 ;
 ; :Params:
@@ -274,206 +499,7 @@ pro comp_dir_browser::load_datedir, datedir, reload=reload
     n_files = n_elements(*(self.files))
     n_images = total(long(files_info.n_images), /integer)
   endif else begin
-    loading_verb = keyword_set(reload) ? 'Reloading' : 'Loading'
-
-    self->set_status, loading_verb + ' ' + datedir + '...'
-
-    files = file_search(datedir, '*.fts*', count=n_files, /fold_case)
-
-    *(self.files) = files
-    (self.files_cache)[datedir] = n_files eq 0L ? [] : files
-
-    if (n_files eq 0L) then begin
-      widget_control, self.table, ysize=0
-      file_info = {}
-      n_images = 0L
-    endif else begin
-      datetime_key = strarr(n_files)
-      type_key = lonarr(n_files)
-
-      files_info = replicate(self->comp_dir_browser_row(), n_files)
-
-      prog = mg_progress(files, $
-                         title=string(loading_verb, datedir, format='(%"%s %s")'), $
-                         label_widget=self.statusbar, /manual)
-      for f = 0L, n_files - 1L do begin
-        ; set time fields
-        basename = file_basename(files[f])
-        file_tokens = strsplit(basename, '.', /extract, count=n_files_tokens)
-        time = file_tokens[1]
-        time = strmid(time, 0, 2) $
-                 + ':' + strmid(time, 2, 2) $
-                 + ':' + strmid(time, 4, 2)
-
-        comp_query_file, files[f], $
-                         beam_state=beam, wavelength=wave, $
-                         polarization=pol, type=type, $
-                         exposures=exposures, cover=cover, $
-                         observation_id=obs_id, observation_plan=obs_plan, $
-                         cal_polarizer=polarizer, cal_retarder=retarder, $
-                         pol_angle=pol_angle
-
-        n = n_elements(pol)
-        case type of
-          'OPAL': begin
-              files_info[f].type = 'flat'
-              files_info[f].n_images = strtrim(n, 2)
-              if (basename eq 'flat.fts') then begin
-                files_info[f].time = ''
-                datetime_key[f] = ''
-                type_key[f] = 1
-              endif else begin
-                files_info[f].time = time
-                datetime_key[f] = strmid(basename, 0, 15)
-              endelse
-            end
-          'CALIBRATION': begin
-              files_info[f].type = 'calibration'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = time
-              datetime_key[f] = strmid(basename, 0, 15)
-            end
-          'DATA': begin
-              files_info[f].type = 'data'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = time
-              datetime_key[f] = strmid(basename, 0, 15)
-            end
-          'BACKGROUND': begin
-              files_info[f].type = 'background'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = time
-              type_key[f] = 1
-              datetime_key[f] = strmid(basename, 0, 15)
-            end
-          'DARK': begin
-              files_info[f].type = 'dark'
-              files_info[f].n_images = strtrim(n, 2)
-              if (basename eq 'dark.fts') then begin
-                files_info[f].time = ''
-                datetime_key[f] = ''
-                type_key[f] = 0
-              endif else begin
-                files_info[f].time = time
-                datetime_key[f] = strmid(basename, 0, 15)
-              endelse
-            end
-          'DYNAMICS': begin
-              files_info[f].type = 'dynamics'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = time
-              type_key[f] = 3
-              datetime_key[f] = strmid(basename, 0, 15)
-            end
-          'POLARIZATION': begin
-              files_info[f].type = 'polarization'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = time
-              type_key[f] = 4
-              datetime_key[f] = strmid(basename, 0, 15)
-            end
-          'INTENSITY': begin
-              files_info[f].type = 'intensity'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = time
-              type_key[f] = 2
-              datetime_key[f] = strmid(basename, 0, 15)
-            end
-          'MEAN': begin
-              files_info[f].type = 'mean'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = ''
-              datetime_key[f] = ''
-              type_key[f] = 2
-            end
-          'MEDIAN': begin
-              files_info[f].type = 'median'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = ''
-              datetime_key[f] = ''
-              type_key[f] = 3
-            end
-          'QUICK_INVERT': begin
-              files_info[f].type = 'quick_invert'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = ''
-              datetime_key[f] = ''
-              type_key[f] = 5
-            end
-          'SIGMA': begin
-              files_info[f].type = 'sigma'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = ''
-              datetime_key[f] = ''
-              type_key[f] = 4
-            end
-          'INVALID': begin
-              files_info[f].type = 'invalid'
-              files_info[f].n_images = strtrim(n, 2)
-              files_info[f].time = ''
-              datetime_key[f] = ''
-              type_key[f] = -1
-            end
-          else: begin
-              files_info[f].type = 'unknown'
-              self->set_status, string(type, file_basename(files[f]), $
-                                       format='(%"unknown data file type %s for %s")')
-            end
-        endcase
-
-        if (n gt 0L) then begin
-          exposures_ind = where(finite(exposures), n_exposures)
-          if (n_exposures gt 0L) then begin
-            exposures = exposures[exposures_ind]
-            exposures = exposures[uniq(exposures, sort(exposures))]
-            n_exposures = n_elements(exposures)
-          endif
-          case n_exposures of
-            0: files_info[f].exposure = ''
-            1: files_info[f].exposure = string(exposures[0], format='(%"%0.1f ms")')
-            else: files_info[f].exposure = strjoin(string(exposures, format='(F0.1)'), ', ') + ' ms'
-          endcase
-
-          uniq_pol = pol[uniq(pol, sort(pol))]
-          pol_ind = where(uniq_pol ne '', n_valid_pol)
-          if (n_valid_pol eq 0L) then begin
-            files_info[f].pol_states = ''
-          endif else begin
-            files_info[f].pol_states = strjoin(strtrim(uniq_pol[pol_ind], 2), ', ')
-          endelse
-
-          wave_ind = where(finite(wave), n_wave)
-          if (n_wave eq 0L) then begin
-            files_info[f].wavelengths = ''
-          endif else begin
-            wave = wave[wave_ind]
-            uniq_wave = wave[uniq(wave, sort(wave))]
-            files_info[f].wavelengths = strtrim(n_elements(uniq_wave), 2) + ': ' + strjoin(strtrim(uniq_wave, 2), ', ') + ' nm'
-          endelse
-
-          files_info[f].obs_plan = obs_plan
-          files_info[f].obs_id = obs_id
-          if (self.calibration) then begin
-            files_info[f].polarizer = polarizer ? 'IN' : ''
-            files_info[f].retarder = retarder ? 'IN' : ''
-            files_info[f].pol_angle = finite(pol_angle) $
-                                      ? string(pol_angle, format='(%"%7.1f")') $
-                                      : ''
-          endif
-        endif
-        prog->advance
-      endfor
-      prog->advance
-      obj_destroy, prog
-
-      ind = mg_sort(datetime_key, type_key)
-      files_info = files_info[ind]
-      *(self.files) = files[ind]
-      (self.files_cache)[datedir] = files[ind]
-      n_images = total(long(files_info.n_images), /integer)
-    endelse
-
-    (self.inventories)[datedir] = files_info
+    self->_load_datedir, datedir, reload=reload, n_images=n_images, n_files=n_files
   endelse
 
   self->filter_table
