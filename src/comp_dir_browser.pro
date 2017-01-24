@@ -231,6 +231,12 @@ pro comp_dir_browser::load_directory, dirs, filter=filter, directory_id=director
                          tooltip=file_expand_path(dir))
     endelse
 
+    image_bmp = read_bmp(filepath('image.bmp', subdir=['resource', 'bitmaps']), r, g, b)
+    bmp = bytarr(16, 16, 3)
+    bmp[*, *, 0] = r[image_bmp]
+    bmp[*, *, 1] = g[image_bmp]
+    bmp[*, *, 2] = b[image_bmp]
+
     for d = 0L, n_datedirs - 1L do begin
       ; TODO: not using BITMAP keyword right now because it slows the creating
       ; of the tree nodes by a factor of 10 or more
@@ -238,9 +244,13 @@ pro comp_dir_browser::load_directory, dirs, filter=filter, directory_id=director
                             value=file_basename(datedirs[d]) $
                                     + ' - ' + strtrim(n_files[d], 2) + ' files', $
                             ;bitmap=bitmap, $
-                            uvalue=datedirs[d], $
+                            uvalue=file_expand_path(datedirs[d]), $
                             uname='datedir', $
                             tooltip=file_expand_path(datedirs[d]))
+      !null = self.prefs_cache->get(file_expand_path(datedirs[d]), found=found)
+      if (found) then begin
+        widget_control, datedir, set_tree_bitmap=bmp
+      endif
     endfor
     widget_control, self.tlb, update=1
   endforeach
@@ -467,13 +477,16 @@ pro comp_dir_browser::_load_datedir, datedir, reload=reload, $
     obj_destroy, prog
 
     ind = mg_sort(datetime_key, type_key)
+    files = files[ind]
     files_info = files_info[ind]
-    *(self.files) = files[ind]
-    (self.files_cache)[datedir] = files[ind]
+    *(self.files) = files
+    (self.files_cache)[datedir] = files
     n_images = total(long(files_info.n_images), /integer)
   endelse
 
   (self.inventories)[datedir] = files_info
+  info = {files_info: files_info, files: files, ctime: systime(/seconds)}
+  self.prefs_cache->set, datedir, info
 end
 
 
@@ -499,7 +512,23 @@ pro comp_dir_browser::load_datedir, datedir, reload=reload
     n_files = n_elements(*(self.files))
     n_images = total(long(files_info.n_images), /integer)
   endif else begin
-    self->_load_datedir, datedir, reload=reload, n_images=n_images, n_files=n_files
+    info = self.prefs_cache->get(datedir, found=found)
+    if (found) then begin
+      files_info = info.files_info
+      newest_ctime = comp_newest_file(datedir)
+      if (newest_ctime gt info.ctime) then begin
+        self->_load_datedir, datedir, reload=reload, n_images=n_images, n_files=n_files
+      endif else begin
+        files = info.files
+        n_images = total(long(files_info.n_images), /integer)
+        n_files = n_elements(files)
+        *(self.files) = files
+        (self.files_cache)[datedir] = files
+        (self.inventories)[datedir] = files_info
+      endelse
+    endif else begin
+      self->_load_datedir, datedir, reload=reload, n_images=n_images, n_files=n_files
+    endelse
   endelse
 
   self->filter_table
@@ -982,7 +1011,7 @@ pro comp_dir_browser::cleanup
   compile_opt strictarr
 
   ptr_free, self.files, self.current_filter, self.selection
-  obj_destroy, [self.file_browser, self.inventories, self.files_cache]
+  obj_destroy, [self.file_browser, self.inventories, self.files_cache, self.prefs_cache]
 end
 
 
@@ -1032,6 +1061,8 @@ function comp_dir_browser::init, directory=directory, tlb=tlb, $
   if (arg_present(tlb)) then tlb = self.tlb
   self.files = ptr_new(/allocate_heap)
 
+  self.prefs_cache = mgffprefs(author_name='mlso', app_name='comp_dir_browser')
+
   if (n_elements(directory) gt 0L) then self->load_directory, directory
 
   return, 1
@@ -1067,7 +1098,8 @@ pro comp_dir_browser__define
              files: ptr_new(), $
              file_browser: obj_new(), $
              inventories: obj_new(), $
-             files_cache: obj_new() $
+             files_cache: obj_new(), $
+             prefs_cache: obj_new() $
            }
 end
 
