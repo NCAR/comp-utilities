@@ -53,7 +53,11 @@ function comp_browser::get_level, data, header, filename=filename
   if (ndims ne 2) then return, -1
 
   dims = size(data, /dimensions)
-  if (array_equal(dims, [1024, 1024])) then return, 0
+  if (array_equal(dims, [1024, 1024])) then begin
+    basename = file_basename(filename)
+    if (basename eq 'flat.fts' || basename eq 'dark.fts') then return, 1
+    return, 0
+  endif
   if (array_equal(dims, [620, 620])) then begin
     switch sxpar(header, 'EXTNAME') of
       'Intensity':
@@ -460,6 +464,11 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
 
   top = 250
 
+  ; display flats and darks as level 0 (since they are level 0, just collected
+  ; into a single file)
+  basename = file_basename(filename)
+  if (basename eq 'flat.fts' || basename eq 'dark.fts') then level = 0
+
   case level of
     0: begin
         fits_open, filename, fcb
@@ -678,36 +687,73 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
 
   dims = size(data, /dimensions)
 
-  ; only annotating level 1 data
-  if (~array_equal(dims, [620, 620])) then return
-
-  frpix1 = (sxpar(header, 'FRPIX1') - 1.0) / dims[0]
-  frpix2 = (sxpar(header, 'FRPIX2') - 1.0) / dims[1]
-  fradius = (sxpar(header, 'FRADIUS'))
-
-  crpix1 = (sxpar(header, 'CRPIX1') - 1.0) / dims[0]
-  crpix2 = (sxpar(header, 'CRPIX2') - 1.0) / dims[1]
-  cradius = (sxpar(header, 'ORADIUS'))
-
-  t = findgen(361) * !dtor
-  fx = dimensions[0] * (fradius / dims[0] * cos(t) + frpix1)
-  fy = dimensions[1] * (fradius / dims[1] * sin(t) + frpix2)
-
-  cx = dimensions[0] * (cradius / dims[0] * cos(t) + crpix1)
-  cy = dimensions[1] * (cradius / dims[1] * sin(t) + crpix2)
+  ; only annotating level 1 data (but including flats.fts)
+  oxcnter1 = (sxpar(header, 'OXCNTER1', count=flat) - 1.0) / dims[0]
+  if (~array_equal(dims, [620, 620]) && ~flat) then return
 
   fieldstop_color = 'ffffff'x
   occulter_color = '00ffff'x
+  t = findgen(361) * !dtor
 
   device, decomposed=1
+  if (flat) then begin
+    oycnter1 = (sxpar(header, 'OYCNTER1') - 1.0) / dims[1]
+    oradius1 = sxpar(header, 'ORADIUS1')
+    oxcnter2 = (sxpar(header, 'OXCNTER2') - 1.0) / dims[0]
+    oycnter2 = (sxpar(header, 'OYCNTER2') - 1.0) / dims[1]
+    oradius2 = sxpar(header, 'ORADIUS2')
+    ox1 = dimensions[0] * (oradius1 / dims[0] * cos(t) + oxcnter1)
+    oy1 = dimensions[1] * (oradius1 / dims[1] * sin(t) + oycnter1)
+    ox2 = dimensions[0] * (oradius2 / dims[0] * cos(t) + oxcnter2)
+    oy2 = dimensions[1] * (oradius2 / dims[1] * sin(t) + oycnter2)
 
-  plots, dimensions[0] * [frpix1], dimensions[1] * [frpix2], $
-         psym=1, /device, color=fieldstop_color
-  plots, fx, fy, /device, color=fieldstop_color
+    plots, dimensions[0] * [oxcnter1], dimensions[1] * [oycnter1], $
+           psym=1, /device, color=occulter_color
+    plots, ox1, oy1, /device, color=occulter_color
+    plots, dimensions[0] * [oxcnter2], dimensions[1] * [oycnter2], $
+           psym=1, /device, color=occulter_color
+    plots, ox2, oy2, /device, color=occulter_color
 
-  plots, dimensions[0] * [crpix1], dimensions[1] * [crpix2], $
-         psym=1, /device, color=occulter_color
-  plots, cx, cy, /device, color=occulter_color
+    fxcnter1 = (sxpar(header, 'FXCNTER1') - 1.0) / dims[0]
+    fycnter1 = (sxpar(header, 'FYCNTER1') - 1.0) / dims[1]
+    fradius1 = sxpar(header, 'FRADIUS1')
+    fxcnter2 = (sxpar(header, 'FXCNTER2') - 1.0) / dims[0]
+    fycnter2 = (sxpar(header, 'FYCNTER2') - 1.0) / dims[1]
+    fradius2 = sxpar(header, 'FRADIUS2')
+    fx1 = dimensions[0] * (fradius1 / dims[0] * cos(t) + fxcnter1)
+    fy1 = dimensions[1] * (fradius1 / dims[1] * sin(t) + fycnter1)
+    fx2 = dimensions[0] * (fradius2 / dims[0] * cos(t) + fxcnter2)
+    fy2 = dimensions[1] * (fradius2 / dims[1] * sin(t) + fycnter2)
+
+    plots, dimensions[0] * [fxcnter1], dimensions[1] * [fycnter1], $
+           psym=1, /device, color=field_color
+    plots, fx1, fy1, /device, color=field_color
+    plots, dimensions[0] * [fxcnter2], dimensions[1] * [fycnter2], $
+           psym=1, /device, color=field_color
+    plots, fx2, fy2, /device, color=field_color
+  endif else begin
+    frpix1 = (sxpar(header, 'FRPIX1') - 1.0) / dims[0]
+    frpix2 = (sxpar(header, 'FRPIX2') - 1.0) / dims[1]
+    fradius = (sxpar(header, 'FRADIUS'))
+
+    crpix1 = (sxpar(header, 'CRPIX1') - 1.0) / dims[0]
+    crpix2 = (sxpar(header, 'CRPIX2') - 1.0) / dims[1]
+    cradius = (sxpar(header, 'ORADIUS'))
+
+    fx = dimensions[0] * (fradius / dims[0] * cos(t) + frpix1)
+    fy = dimensions[1] * (fradius / dims[1] * sin(t) + frpix2)
+
+    cx = dimensions[0] * (cradius / dims[0] * cos(t) + crpix1)
+    cy = dimensions[1] * (cradius / dims[1] * sin(t) + crpix2)
+
+    plots, dimensions[0] * [frpix1], dimensions[1] * [frpix2], $
+           psym=1, /device, color=fieldstop_color
+    plots, fx, fy, /device, color=fieldstop_color
+
+    plots, dimensions[0] * [crpix1], dimensions[1] * [crpix2], $
+           psym=1, /device, color=occulter_color
+    plots, cx, cy, /device, color=occulter_color
+  endelse
 end
 
 
