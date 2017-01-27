@@ -697,11 +697,36 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
 
   device, decomposed=1
   if (flat) then begin
-    oycnter1 = (sxpar(header, 'OYCNTER1') - 1.0) / dims[1]
-    oradius1 = sxpar(header, 'ORADIUS1')
-    oxcnter2 = (sxpar(header, 'OXCNTER2') - 1.0) / dims[0]
-    oycnter2 = (sxpar(header, 'OYCNTER2') - 1.0) / dims[1]
-    oradius2 = sxpar(header, 'ORADIUS2')
+    new_oxcnter1 = (sxpar(header, 'OXCNTRU1', count=new_flat) - 1.0) / dims[0]
+    if (new_flat) then begin
+      oxcnter1 = new_oxcnter1
+      oycnter1 = (sxpar(header, 'OYCNTRU1') - 1.0) / dims[1]
+      oradius1 = sxpar(header, 'ORADU1')
+      oxcnter2 = (sxpar(header, 'OXCNTRU2') - 1.0) / dims[0]
+      oycnter2 = (sxpar(header, 'OYCNTRU2') - 1.0) / dims[1]
+      oradius2 = sxpar(header, 'ORADU2')
+
+      fxcnter1 = (sxpar(header, 'FXCNTRU1') - 1.0) / dims[0]
+      fycnter1 = (sxpar(header, 'FYCNTRU1') - 1.0) / dims[1]
+      fradius1 = sxpar(header, 'FRADU1')
+      fxcnter2 = (sxpar(header, 'FXCNTRU2') - 1.0) / dims[0]
+      fycnter2 = (sxpar(header, 'FYCNTRU2') - 1.0) / dims[1]
+      fradius2 = sxpar(header, 'FRADU2')
+    endif else begin
+      oycnter1 = (sxpar(header, 'OYCNTER1') - 1.0) / dims[1]
+      oradius1 = sxpar(header, 'ORADIUS1')
+      oxcnter2 = (sxpar(header, 'OXCNTER2') - 1.0) / dims[0]
+      oycnter2 = (sxpar(header, 'OYCNTER2') - 1.0) / dims[1]
+      oradius2 = sxpar(header, 'ORADIUS2')
+
+      fxcnter1 = (sxpar(header, 'FXCNTER1') - 1.0) / dims[0]
+      fycnter1 = (sxpar(header, 'FYCNTER1') - 1.0) / dims[1]
+      fradius1 = sxpar(header, 'FRADIUS1')
+      fxcnter2 = (sxpar(header, 'FXCNTER2') - 1.0) / dims[0]
+      fycnter2 = (sxpar(header, 'FYCNTER2') - 1.0) / dims[1]
+      fradius2 = sxpar(header, 'FRADIUS2')
+    endelse
+
     ox1 = dimensions[0] * (oradius1 / dims[0] * cos(t) + oxcnter1)
     oy1 = dimensions[1] * (oradius1 / dims[1] * sin(t) + oycnter1)
     ox2 = dimensions[0] * (oradius2 / dims[0] * cos(t) + oxcnter2)
@@ -714,12 +739,6 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
            psym=1, /device, color=occulter_color
     plots, ox2, oy2, /device, color=occulter_color
 
-    fxcnter1 = (sxpar(header, 'FXCNTER1') - 1.0) / dims[0]
-    fycnter1 = (sxpar(header, 'FYCNTER1') - 1.0) / dims[1]
-    fradius1 = sxpar(header, 'FRADIUS1')
-    fxcnter2 = (sxpar(header, 'FXCNTER2') - 1.0) / dims[0]
-    fycnter2 = (sxpar(header, 'FYCNTER2') - 1.0) / dims[1]
-    fradius2 = sxpar(header, 'FRADIUS2')
     fx1 = dimensions[0] * (fradius1 / dims[0] * cos(t) + fxcnter1)
     fy1 = dimensions[1] * (fradius1 / dims[1] * sin(t) + fycnter1)
     fx2 = dimensions[0] * (fradius2 / dims[0] * cos(t) + fxcnter2)
