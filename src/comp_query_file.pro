@@ -56,7 +56,7 @@ pro comp_query_file, filename, $
   compile_opt idl2
 
   fits_open, filename, fcb
-  if (n_elements(fcb) eq 0) then begin
+  if (n_elements(fcb) eq 0 || fcb.nextend eq 0L) then begin
     type = 'INVALID'
     group = !null
     beam_state = !null
