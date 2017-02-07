@@ -836,8 +836,7 @@ pro comp_dir_browser::handle_events, event
         dir_node = widget_info(self.current_datedir, /parent)
         widget_control, dir_node, get_uvalue=uvalue
 
-        full_filenames = filepath(filenames, root=uvalue.fullpath)
-        state = comp_average_dialog(full_filenames, dialog_parent=self.tlb, $
+        state = comp_average_dialog(filenames, dialog_parent=self.tlb, $
                                     output_filename=output_filename, $
                                     method=method, $
                                     label_widget=self.statusbar)
