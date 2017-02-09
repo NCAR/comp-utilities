@@ -103,6 +103,88 @@ function comp_dir_browser_findlevel, datedir, files=files, n_files=n_files
 end
 
 
+;= cache helper methods
+
+;+
+; Get the number of bytes that are in the current cache.
+;
+; :Returns:
+;   long
+;-
+function comp_dir_browser::_get_cache_size
+  compile_opt strictarr
+
+  self.prefs_cache->getProperty, app_directory=app_dir
+  cache_files = file_search(filepath('*.sav', root=app_dir), count=n_cache_files)
+  cache_size = 0L
+  for c = 0L, n_cache_files - 1L do begin
+    info = file_info(cache_files[c])
+    cache_size += info.size
+  endfor
+  return, cache_size
+end
+
+
+;+
+; Updates the cache size on the cache label.
+;-
+pro comp_dir_browser::_update_cache_label
+  compile_opt strictarr
+
+  cache_size = self->_get_cache_size()
+  cache_label = widget_info(self.tlb, find_by_uname='cache_label')
+  cache_str = string(mg_human_size(cache_size), format='(%"Cache size: %s")')
+  widget_control, cache_label, set_value=cache_str
+end
+
+
+;+
+; Remove cache icons from tree widgets starting at the `root` tree widget
+; identifier.
+;
+; :Keywords:
+;   root : in, optional, type=long
+;     tree widget to start searching below, default is root widget of tree
+;-
+pro comp_dir_browser::_remove_cache_icons, root=root
+  compile_opt strictarr
+
+  if (n_elements(root) eq 0L) then begin
+    tree_root = widget_info(self.tlb, find_by_uname='root')
+    self->_remove_cache_icons, root=tree_root
+  endif else begin
+    if (widget_info(root, /tree_folder)) then begin
+      n_children = widget_info(root, /n_children)
+      if (n_children gt 0L) then begin
+        all_children = widget_info(root, /all_children)
+        for c = 0L, n_children - 1L do begin
+          self->_remove_cache_icons, root=all_children[c]
+        endfor
+      endif
+    endif else begin
+      widget_control, root, set_tree_bitmap=0
+    endelse
+  endelse
+end
+
+
+;+
+; Remove cache files.
+;
+; :Keywords:
+;   n_files : out, optional, type=integer
+;     set to a named variable to retrieve the number of files removed
+;-
+pro comp_dir_browser::_cache_clear, n_files=n_cache_files
+  compile_opt strictarr
+
+  self.prefs_cache->getProperty, app_directory=app_dir
+  cache_files = file_search(filepath('*.sav', root=app_dir), count=n_cache_files)
+  if (n_cache_files gt 0L) then file_delete, cache_files
+end
+
+
+
 ;= API
 
 ;+
@@ -238,8 +320,8 @@ pro comp_dir_browser::load_directory, dirs, filter=filter, directory_id=director
     bmp[*, *, 2] = b[image_bmp]
 
     for d = 0L, n_datedirs - 1L do begin
-      ; TODO: not using BITMAP keyword right now because it slows the creating
-      ; of the tree nodes by a factor of 10 or more
+      ; not using BITMAP keyword right now because it slows the creating of the
+      ; tree nodes by a factor of 10 or more
       datedir = widget_tree(root, $
                             value=file_basename(datedirs[d]) $
                                     + ' - ' + strtrim(n_files[d], 2) + ' files', $
@@ -487,6 +569,7 @@ pro comp_dir_browser::_load_datedir, datedir, reload=reload, $
   (self.inventories)[datedir] = files_info
   info = {files_info: files_info, files: files, ctime: systime(/seconds)}
   self.prefs_cache->set, datedir, info
+  self->_update_cache_label
 end
 
 
@@ -533,8 +616,8 @@ pro comp_dir_browser::load_datedir, datedir, reload=reload
 
   self->filter_table
 
-  self->set_status, string(n_images, n_files, $
-                           format='(%"Loaded %d images in %d files")')
+  self->set_status, string(n_images, n_files, datedir, $
+                           format='(%"Loaded %d images in %d files from %s")')
 end
 
 
@@ -759,6 +842,7 @@ pro comp_dir_browser::handle_events, event
       end
     'refresh': begin
         selected_id = widget_info(self.tree, /tree_select)
+        if (selected_id lt 0) then return
         treenode_uname = widget_info(selected_id, /uname)
         widget_control, selected_id, get_uvalue=treenode_uvalue
         case treenode_uname of
@@ -808,6 +892,19 @@ pro comp_dir_browser::handle_events, event
     'filter_level2': begin
         self.show_level2 = event.select
         self->filter_table
+      end
+    'cache_clear' : begin
+        ok = dialog_message('Clear cache?', /information, $
+                            /cancel, /default_cancel, $
+                            dialog_parent=self.tlb)
+        if (ok eq 'OK') then begin
+          orig_cache_size = self->_get_cache_size()
+          self->_cache_clear, n_files=n_files
+          self->_update_cache_label
+          self->_remove_cache_icons
+          self->set_status, string(n_files, mg_human_size(orig_cache_size), $
+                                   format='(%"Removed %d cache files (%s)")')
+        endif
       end
     'display_files': begin
         if (~obj_valid(self.file_browser)) then begin
@@ -925,6 +1022,17 @@ pro comp_dir_browser::create_widgets
 
   widget_control, filter_wave_base, set_button=1
 
+  cache_str = string(mg_human_size(self->_get_cache_size()), format='(%"Cache size: %s")')
+  cache_label = widget_label(toolbar, value=cache_str, $
+                             uname='cache_label', $
+                             scr_xsize=150, /align_right)
+  cache_clear = widget_button(toolbar, $
+                              value=filepath('reset.bmp', $
+                                             subdir=['resource', 'bitmaps']), $
+                              /bitmap, $
+                              tooltip='Clear cache', $
+                              uname='cache_clear')
+
   ; content row
   content_base = widget_base(self.tlb, /row, xpad=0)
 
@@ -1033,8 +1141,9 @@ function comp_dir_browser::init, directory=directory, tlb=tlb, $
   compile_opt strictarr
 
   self.title = 'CoMP data directory browser'
-
   self.calibration = keyword_set(calibration)
+
+  self.prefs_cache = mgffprefs(author_name='mlso', app_name='comp_dir_browser')
 
   self->create_widgets
   self->realize_widgets
@@ -1059,8 +1168,6 @@ function comp_dir_browser::init, directory=directory, tlb=tlb, $
 
   if (arg_present(tlb)) then tlb = self.tlb
   self.files = ptr_new(/allocate_heap)
-
-  self.prefs_cache = mgffprefs(author_name='mlso', app_name='comp_dir_browser')
 
   if (n_elements(directory) gt 0L) then self->load_directory, directory
 
