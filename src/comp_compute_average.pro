@@ -106,6 +106,7 @@ pro comp_compute_average, files, method, output_filename=output_filename, $
   fits_read, test_fcb, d, primary_header, /header_only, exten_no=0
   sxdelpar, primary_header, 'DATE_HST'
   sxdelpar, primary_header, 'TIME_HST'
+  sxaddpar, primary_header, 'BITPIX', -32
   sxaddpar, primary_header, 'LEVEL   ', 'L2'
   fits_close, test_fcb
 
@@ -135,7 +136,7 @@ pro comp_compute_average, files, method, output_filename=output_filename, $
   ; TODO:
   ;comp_l2_update_version, primary_header
 
-  fits_write, output_fcb, 0, primary_header
+  fits_write, output_fcb, 0.0, primary_header
 
   ; compute averages
   back = fltarr(nx, ny, n_waves)
