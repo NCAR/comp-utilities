@@ -59,7 +59,7 @@ function comp_browser::get_level, data, header, filename=filename
     return, 0
   endif
   if (array_equal(dims, [620, 620])) then begin
-    switch sxpar(header, 'EXTNAME') of
+    switch strtrim(sxpar(header, 'EXTNAME'), 2) of
       'Intensity':
       'Enhanced Intensity':
       'Corrected LOS velocity':
@@ -521,7 +521,7 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
         endcase
       end
     2: begin
-        extname = sxpar(header, 'EXTNAME')
+        extname = strtrim(sxpar(header, 'EXTNAME'), 2)
         switch extname of
           'Intensity': begin
               comp_aia_lct, wave=193, /load
@@ -529,6 +529,14 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               display_max = 5
               power = 0.5
               image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+              break
+            end
+          'Azimuth': begin
+              loadct, 4, /silent
+              tvlct, r, g, b, /get
+              b[255] = 255
+              tvlct, r, g, b
+              image = bytscl(_data, min=0, max=180, top=254)
               break
             end
           'Radial Azimuth': begin
