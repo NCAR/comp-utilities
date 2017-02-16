@@ -492,21 +492,28 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
     1: begin
         wave_type = self->get_wave_type(sxpar(header, 'WAVELENG'))
         loadct, 3, /silent
+        pol_state = strtrim(sxpar(header, 'POLSTATE'), 2)
         case wave_type of
           '1074' : begin
-              display_min = 0.0
-              display_max = 5.0
-              power = 0.5
-              image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+              if (pol_state eq 'Q' || pol_state eq 'U') then begin
+                image = bytscl(_data, min=-0.4, max=0.4, top=top)
+              endif else if (pol_state eq 'V') then begin
+                image = bytscl(_data, min=-0.1, max=0.1, top=top)
+              endif else begin
+                image = bytscl((_data > 0.0)^0.5, min=0.0, max=5.0, top=top)
+              endelse            
             end
           '1079' : begin
-              display_min = 0
-              display_max = 3.5
-              power = 0.5
-              image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+              if (pol_state eq 'Q' || pol_state eq 'U') then begin
+                image = bytscl(_data, min=-0.4, max=0.4, top=top)
+              endif else if (pol_state eq 'V') then begin
+                image = bytscl(_data, min=-0.1, max=0.1, top=top)
+              endif else begin
+                image = bytscl((_data > 0.0)^0.5, min=0.0, max=3.5, top=top)
+              endelse
             end
           '1083' : begin
-              pol_state = strtrim(sxpar(header, 'POLSTATE'), 2)
+              ; TODO: this needs to be update for Q/U/V
               if (pol_state eq 'Q' || pol_state eq 'U' || pol_state eq 'V') then begin
                 display_min = 1.0
                 display_max = 4.0
@@ -623,32 +630,40 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
           else: begin
               wave_type = self->get_wave_type(sxpar(header, 'WAVELENG'))
               loadct, 3, /silent
+              pol_state = strtrim(sxpar(header, 'POLSTATE'), 2)
+
               case wave_type of
                 '1074' : begin
-                  display_min = 0.0
-                  display_max = 5.0
-                  power = 0.5
-                  image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
-                end
+                    if (pol_state eq 'Q' || pol_state eq 'U') then begin
+                      image = bytscl(_data, min=-0.4, max=0.4, top=top)
+                    endif else if (pol_state eq 'V') then begin
+                      image = bytscl(_data, min=-0.1, max=0.1, top=top)
+                    endif else begin
+                      image = bytscl((_data > 0.0)^0.5, min=0.0, max=5.0, top=top)
+                    endelse
+                  end
                 '1079' : begin
-                  display_min = 0
-                  display_max = 3.5
-                  power = 0.5
-                  image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
-                end
+                    if (pol_state eq 'Q' || pol_state eq 'U') then begin
+                      image = bytscl(_data, min=-0.4, max=0.4, top=top)
+                    endif else if (pol_state eq 'V') then begin
+                      image = bytscl(_data, min=-0.1, max=0.1, top=top)
+                    endif else begin
+                      image = bytscl((_data > 0.0)^0.5, min=0.0, max=3.5, top=top)
+                    endelse
+                  end
                 '1083' : begin
-                  pol_state = strtrim(sxpar(header, 'POLSTATE'), 2)
-                  if (pol_state eq 'Q' || pol_state eq 'U' || pol_state eq 'V') then begin
-                    display_min = 1.0
-                    display_max = 4.0
-                  endif else begin
-                    display_min = 2.0
-                    display_max = 10.0
-                  endelse
-                  power = 0.3
+                    ; TODO: this need to be updated for Q/U/V
+                    if (pol_state eq 'Q' || pol_state eq 'U' || pol_state eq 'V') then begin
+                      display_min = 1.0
+                      display_max = 4.0
+                    endif else begin
+                      display_min = 2.0
+                      display_max = 10.0
+                    endelse
+                    power = 0.3
 
-                  image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
-                end
+                    image = bytscl((_data > 0.0)^power, min=display_min, max=display_max, top=top)
+                  end
               endcase
             end
         endswitch
