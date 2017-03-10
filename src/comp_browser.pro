@@ -210,7 +210,7 @@ function comp_browser::extension_title, n_exts, ext_names, filename=filename
                    polarization_state=polarization_state, $
                    exposures=exposures
 
-  titles = strarr(n_exts)
+  titles = strarr(n_exts > 1)
 
   case type of
     'DARK': begin
