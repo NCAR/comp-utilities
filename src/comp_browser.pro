@@ -283,22 +283,29 @@ function comp_browser::extension_title, n_exts, ext_names, filename=filename
         end
     'DATA': begin
         !null = where(beam_state eq 0, n_zero_beam)
+        mask = ~finite(wavelength) or polarization_state eq ''
         if (n_zero_beam gt 0L) then begin   ; level 1
           for e = 1L, n_exts do begin
-            titles[e - 1] = string(e, $
-                                   polarization_state[e - 1], $
-                                   wavelength[e - 1], $
-                                   format='(%"ext %d: %s @ %0.2f nm")')
+            titles[e - 1] = mask[e - 1] $
+                              ? string(e, ext_names[e], $
+                                       format='(%"ext %d: %s")') $
+                              : string(e, $
+                                       polarization_state[e - 1], $
+                                       wavelength[e - 1], $
+                                       format='(%"ext %d: %s @ %0.2f nm")')
           endfor
         endif else begin   ; raw
           beam_description = 'Corona in ' + (['UL', 'LR'])[beam_state > 0]
 
           for e = 1L, n_exts do begin
-            titles[e - 1] = string(e, $
-                                   polarization_state[e - 1], $
-                                   wavelength[e - 1], $
-                                   beam_description[e - 1], $
-                                   format='(%"ext %d: %s @ %0.2f nm (%s)")')
+            titles[e - 1] = mask[e - 1] $
+                              ? string(e, ext_names[e], $
+                                       format='(%"ext %d: %s")') $
+                              : string(e, $
+                                       polarization_state[e - 1], $
+                                       wavelength[e - 1], $
+                                       beam_description[e - 1], $
+                                       format='(%"ext %d: %s @ %0.2f nm (%s)")')
           endfor
         endelse
       end
