@@ -138,7 +138,8 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
     old_window = !d.window
     wset, self.draw_id
     ; scale character size with display size
-    charsize = (!d.x_size / 600.) < (!d.y_size / 300.) < 1.25
+    charsize = (!d.x_size / 600.0) < (!d.y_size / 300.0) < 1.5
+    charsize <= 1.25
   endelse
 
   device, get_decomposed=odec
@@ -224,11 +225,11 @@ pro comp_db_plot::handle_events, event
         self->redraw
       end
     'xaxis': begin
-        self.current_xaxis = event.index
+        self.current_xaxis = (*self.available_columns)[event.index]
         self->redraw
       end
     'yaxis': begin
-        self.current_yaxis = event.index
+        self.current_yaxis = (*self.available_columns)[event.index]
         self->redraw
       end
     'save': begin
@@ -258,8 +259,8 @@ end
 pro comp_db_plot::create_widgets
   compile_opt strictarr
 
-  draw_xsize = 600.0
-  draw_ysize = 300.0
+  draw_xsize = 700.0
+  draw_ysize = 400.0
   xpad = 1.0
 
   bitmapdir = ['resource', 'bitmaps']
@@ -276,13 +277,14 @@ pro comp_db_plot::create_widgets
 
   xaxis_base = widget_base(toolbar, xpad=0.0, ypad=0.0, space=0.0, /row)
   xaxis_label = widget_label(xaxis_base, value='X-axis:')
+
   xaxis_list = widget_combobox(xaxis_base, $
-                               value=(*self.fields).name, $
+                               value=((*self.fields).name)[*self.available_columns], $
                                uname='xaxis')
   yaxis_base = widget_base(toolbar, xpad=0.0, ypad=0.0, space=0.0, /row)
   yaxis_label = widget_label(yaxis_base, value='Y-axis:')
   yaxis_list = widget_combobox(yaxis_base, $
-                               value=(*self.fields).name, $
+                               value=((*self.fields).name)[*self.available_columns], $
                                uname='yaxis')
 
   self.draw = widget_draw(self.tlb, xsize=draw_xsize, ysize=draw_ysize)
@@ -322,14 +324,16 @@ end
 pro comp_db_plot::cleanup
   compile_opt strictarr
 
-  ptr_free, self.fields, self.data
+  ptr_free, self.fields, self.data, self.available_columns
 end
 
 
-function comp_db_plot::init, fields=fields, data=data
+function comp_db_plot::init, table, fields=fields, data=data
   compile_opt strictarr
 
-  self.title = 'Database query creator'
+  self.title = 'Plots of database table ' + table
+
+  self.available_columns = ptr_new(where(fields.type ne 253 and fields.type ne 254))
 
   self.fields = ptr_new(fields)
   self.data = ptr_new(data)
@@ -355,15 +359,16 @@ pro comp_db_plot__define
              statusbar: 0L, $
              current_xaxis: 0L, $
              current_yaxis: 0L, $
+             available_columns: ptr_new(), $
              fields: ptr_new(), $
              data: ptr_new() $
            }
 end
 
 
-pro comp_db_plot, fields=fields, data=data
+pro comp_db_plot, table, fields=fields, data=data
   compile_opt strictarr
 
-  plot_browser = obj_new('comp_db_plot', fields=fields, data=data)
+  plot_browser = obj_new('comp_db_plot', table, fields=fields, data=data)
 end
 

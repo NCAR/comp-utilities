@@ -207,7 +207,7 @@ pro comp_db_browser::handle_events, event
     'plot': begin
         widget_control, self.table, get_value=data
         if (n_elements(*self.fields) gt 0L) then begin
-          comp_db_plot, fields=*self.fields, data=data
+          comp_db_plot, self.current_table, fields=*self.fields, data=data
         endif
       end
     else:
