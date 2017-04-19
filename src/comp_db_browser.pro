@@ -73,28 +73,26 @@ pro comp_db_browser::set_status, msg, clear=clear
 end
 
 
-pro comp_db_browser::_update_table, db_values
+pro comp_db_browser::_update_table, db_values, field_names
   compile_opt strictarr
 
   if (n_elements(db_values) eq 0L) then begin
-    n_columns = 10
-    n_rows = 1
+    n_rows = 0
+    _field_names = n_elements(field_names) eq 0L ? strarr(8) : field_names
     widget_control, self.table, $
-                    set_value=strarr(n_columns), $
-                    xsize=n_columns, $
                     ysize=n_rows, $
-                    column_labels=strarr(n_columns)
+                    column_labels=_field_names
   endif else begin
     widget_control, self.table, $
                     set_value=db_values, $
                     xsize=n_tags(db_values), $
                     ysize=n_elements(db_values), $
-                    column_labels=tag_names(db_values)
+                    column_labels=field_names
   endelse
 end
 
 
-function comp_db_browser::get_data, limit=limit, fields=fields
+function comp_db_browser::get_data, limit=limit, fields=fields, field_names=field_names
   compile_opt strictarr
 
   self.db->getProperty, connected=connected
@@ -102,15 +100,24 @@ function comp_db_browser::get_data, limit=limit, fields=fields
 
   self.db->setProperty, database='MLSO'
 
+  limit_present = n_elements(limit) gt 0L || self.current_limit gt 0
   _limit = n_elements(limit) gt 0L ? limit : self.current_limit
 
-  self.current_table = string(self.current_type eq 'sgs' ? 'mlso' : self.current_instrument, $
+  self.current_table = string(self.current_type eq 'sgs' $
+                                ? 'mlso' $
+                                : self.current_instrument, $
                               self.current_type, $
                               format='(%"%s_%s")')
 
   where_clause = self.current_query eq '' ? '' : (' where ' + self.current_query)
-  result = self.db->query('select * from %s%s limit %d', $
-                          self.current_table, where_clause, _limit, $
+  field_result = self.db->query('describe %s', self.current_table, $
+                                sql_statement=sql_statement, error=error, fields=fields)
+  field_names = field_result.field
+
+  result = self.db->query('select * from %s%s%s%s', $
+                          self.current_table, where_clause, $
+                          limit_present ? ' limit' : '', $
+                          limit_present ? (' ' + strtrim(_limit, 2)) : '', $
                           sql_statement=sql_statement, error=error, fields=fields)
 
   if (strlowcase(error) ne 'success') then begin
@@ -160,32 +167,32 @@ pro comp_db_browser::handle_events, event
     'instrument': begin
         self.current_instrument = strlowcase(event.str)
         self.current_query = ''
-        self->_update_table, self->get_data()
+        self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'images': begin
         self.current_type = 'img'
         self.current_query = ''
-        self->_update_table, self->get_data()
+        self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'eng': begin
         self.current_type = 'eng'
         self.current_query = ''
-        self->_update_table, self->get_data()
+        self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'cal': begin
         self.current_type = 'cal'
         self.current_query = ''
-        self->_update_table, self->get_data()
+        self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'sgs': begin
         self.current_type = 'sgs'
         self.current_query = ''
-        self->_update_table, self->get_data()
+        self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'limit': begin
         widget_control, event.id, get_value=limit_value
-        self.current_limit = long(limit_value)
-        self->_update_table, self->get_data()
+        self.current_limit = limit_value eq '' ? -1L : long(limit_value)
+        self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'create_query': begin
         result = self->get_data(limit=1, fields=fields)
@@ -195,7 +202,7 @@ pro comp_db_browser::handle_events, event
       end
     'clear_query': begin
         self.current_query = ''
-        self->_update_table, self->get_data()
+        self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'plot': begin
         widget_control, self.table, get_value=data
@@ -324,7 +331,7 @@ function comp_db_browser::_overloadFunction, query
   compile_opt strictarr
 
   self.current_query = query
-  self->_update_table, self->get_data()
+  self->_update_table, self->get_data(field_names=field_names), field_names
 
   return, query
 end
@@ -394,7 +401,7 @@ function comp_db_browser::init, config_filename, section=section
           : string(error_message, format='(%"Error connecting to database: %s")')
   self->set_status, msg
 
-  self->_update_table, self->get_data()
+  self->_update_table, self->get_data(field_names=field_names), field_names
 
   return, 1
 end
