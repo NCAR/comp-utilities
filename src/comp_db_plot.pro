@@ -159,6 +159,8 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
           ytickunits=ytickunits, $
           psym=3, $
           charsize=charsize
+    self->set_status, string(xinfo.name, yinfo.name, $
+                             format='(%"Plotted %s vs %s")')
   endelse
 
   device, decomposed=odec
@@ -337,8 +339,6 @@ function comp_db_plot::init, fields=fields, data=data
   self->start_xmanager
 
   self->redraw
-
-  self->set_status, 'Ready.'
 
   return, 1
 end

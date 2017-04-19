@@ -104,11 +104,9 @@ function comp_db_browser::get_data, limit=limit, fields=fields
 
   _limit = n_elements(limit) gt 0L ? limit : self.current_limit
 
-  case self.current_instrument of
-    'comp': self.current_table = keyword_set(self.current_engineering) ? 'comp_eng' : 'comp_img'
-    'kcor': self.current_table = keyword_set(self.current_engineering) ? 'kcor_eng' : 'kcor_img'
-  endcase
-
+  self.current_table = string(self.current_type eq 'sgs' ? 'mlso' : self.current_instrument, $
+                              self.current_type, $
+                              format='(%"%s_%s")')
 
   where_clause = self.current_query eq '' ? '' : (' where ' + self.current_query)
   result = self.db->query('select * from %s%s limit %d', $
@@ -118,7 +116,11 @@ function comp_db_browser::get_data, limit=limit, fields=fields
   if (strlowcase(error) ne 'success') then begin
     self->set_status, string(sql_statement, format='(%"problem with SQL statement: ''%s''")')
   endif else begin
-    *self.fields = fields
+    if (n_elements(result) eq 0L) then begin
+      *self.fields = !null
+    endif else begin
+      *self.fields = fields
+    endelse
     self->set_status, string(n_elements(result), $
                              sql_statement, $
                              format='(%"%d results for query: ''%s''")')
@@ -160,13 +162,23 @@ pro comp_db_browser::handle_events, event
         self.current_query = ''
         self->_update_table, self->get_data()
       end
-    'eng': begin
-        self.current_engineering = 1B
+    'images': begin
+        self.current_type = 'img'
         self.current_query = ''
         self->_update_table, self->get_data()
       end
-    'images': begin
-        self.current_engineering = 0B
+    'eng': begin
+        self.current_type = 'eng'
+        self.current_query = ''
+        self->_update_table, self->get_data()
+      end
+    'cal': begin
+        self.current_type = 'cal'
+        self.current_query = ''
+        self->_update_table, self->get_data()
+      end
+    'sgs': begin
+        self.current_type = 'sgs'
         self.current_query = ''
         self->_update_table, self->get_data()
       end
@@ -234,7 +246,9 @@ pro comp_db_browser::create_widgets
   type_base = widget_base(toolbar, xpad=0.0, ypad=0.0, /exclusive, /row)
   images_button = widget_button(type_base, value='images', uname='images')
   widget_control, images_button, /set_button
-  engineering_button = widget_button(type_base, value='engineering data', uname='eng')
+  engineering_button = widget_button(type_base, value='engineering', uname='eng')
+  cal_button = widget_button(type_base, value='calibration', uname='cal')
+  sgs_button = widget_button(type_base, value='SGS', uname='sgs')
 
   spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
 
@@ -257,7 +271,7 @@ pro comp_db_browser::create_widgets
 
   self.current_table = 'comp_img'
   self.current_instrument = 'comp'
-  self.current_engineering = 0B
+  self.current_type = 'img'
 
   n_rows = 500L
   n_columns = 10L
@@ -362,15 +376,13 @@ function comp_db_browser::init, config_filename, section=section
 
   self.fields = ptr_new(/allocate_heap)
   self.current_limit = 500
-  self.current_engineering = 0B
+  self.current_type = 'img'
 
   self.db = mgdbmysql()
-  self.db->setProperty, mysql_secure_auth=0
 
   self.db->connect, config_filename=_config_filename, $
                     config_section=_section, $
                     error_message=error_message
-
   self.db->getProperty, host_name=host, connected=connected
 
   self->create_widgets
@@ -402,7 +414,7 @@ pro comp_db_browser__define
              current_table: '', $
              current_limit: 0L, $
              current_instrument: '', $
-             current_engineering: 0B, $
+             current_type: '', $
              current_query: '' $
            }
 end
