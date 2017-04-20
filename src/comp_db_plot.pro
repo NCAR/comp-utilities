@@ -150,6 +150,7 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
   endif else begin
     self->_axis, x, xinfo, data=_x, tickformat=xtickformat, tickunits=xtickunits
     self->_axis, y, yinfo, data=_y, tickformat=ytickformat, tickunits=ytickunits
+    ticklen = -0.02
     plot, _x, _y, $
           xstyle=9, ystyle=8, $
           xtitle=xinfo.name, $
@@ -158,6 +159,7 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
           xtickunits=xtickunits, $
           ytickformat=ytickformat, $
           ytickunits=ytickunits, $
+          xticklen=ticklen, yticklen=ticklen * !d.y_size / !d.x_size, $
           psym=3, $
           charsize=charsize
     self->set_status, string(xinfo.name, yinfo.name, $
