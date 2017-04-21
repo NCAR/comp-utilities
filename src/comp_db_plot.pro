@@ -151,8 +151,11 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
     self->_axis, x, xinfo, data=_x, tickformat=xtickformat, tickunits=xtickunits
     self->_axis, y, yinfo, data=_y, tickformat=ytickformat, tickunits=ytickunits
     ticklen = -0.02
+    ymin = min(_y, max=ymax)
+    if (finite(self.current_ymin)) then ymin = self.current_ymin
+    if (finite(self.current_ymax)) then ymax = self.current_ymax
     plot, _x, _y, $
-          xstyle=9, ystyle=8, $
+          xstyle=9, ystyle=1, yrange=[ymin, ymax], $
           xtitle=xinfo.name, $
           ytitle=yinfo.name, $
           xtickformat=xtickformat, $
@@ -234,6 +237,24 @@ pro comp_db_plot::handle_events, event
         self.current_yaxis = (*self.available_columns)[event.index]
         self->redraw
       end
+    'ymin': begin
+        widget_control, event.id, get_value=ymin_str
+        if (ymin_str eq '') then begin
+          self.current_ymin = !values.f_nan
+        endif else begin
+          self.current_ymin = float(ymin_str)
+        endelse
+        self->redraw
+      end
+    'ymax': begin
+        widget_control, event.id, get_value=ymax_str
+        if (ymax_str eq '') then begin
+          self.current_ymax = !values.f_nan
+        endif else begin
+          self.current_ymax = float(ymax_str)
+        endelse
+        self->redraw
+      end
     'save': begin
         filename = dialog_pickfile(/write, dialog_parent=self.tlb)
         if (filename ne '') then begin
@@ -278,16 +299,26 @@ pro comp_db_plot::create_widgets
                               value=filepath('save.bmp', subdir=bitmapdir))
 
   xaxis_base = widget_base(toolbar, xpad=0.0, ypad=0.0, space=0.0, /row)
-  xaxis_label = widget_label(xaxis_base, value='X-axis:')
+  xaxis_label = widget_label(xaxis_base, value='x-axis:')
 
   xaxis_list = widget_combobox(xaxis_base, $
                                value=((*self.fields).name)[*self.available_columns], $
                                uname='xaxis')
   yaxis_base = widget_base(toolbar, xpad=0.0, ypad=0.0, space=0.0, /row)
-  yaxis_label = widget_label(yaxis_base, value='Y-axis:')
+  yaxis_label = widget_label(yaxis_base, value='y-axis:')
   yaxis_list = widget_combobox(yaxis_base, $
                                value=((*self.fields).name)[*self.available_columns], $
                                uname='yaxis')
+
+  spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
+  yaxis_range_label = widget_label(toolbar, value='y-axis range:')
+  ymin_text = widget_text(toolbar, value='', uname='ymin', $
+                          scr_xsize=50.0, ysize=1, $
+                          /editable)
+  to_label = widget_label(toolbar, value='to')
+  ymax_text = widget_text(toolbar, value='', uname='ymax', $
+                          scr_xsize=50.0, ysize=1, $
+                          /editable)
 
   self.draw = widget_draw(self.tlb, xsize=draw_xsize, ysize=draw_ysize)
 
@@ -340,6 +371,9 @@ function comp_db_plot::init, table, fields=fields, data=data
   self.fields = ptr_new(fields)
   self.data = ptr_new(data)
 
+  self.current_ymin = !values.f_nan
+  self.current_ymax = !values.f_nan
+
   self->create_widgets
   self->realize_widgets
   self->start_xmanager
@@ -361,6 +395,8 @@ pro comp_db_plot__define
              statusbar: 0L, $
              current_xaxis: 0L, $
              current_yaxis: 0L, $
+             current_ymin: 0.0, $
+             current_ymax: 0.0, $
              available_columns: ptr_new(), $
              fields: ptr_new(), $
              data: ptr_new() $

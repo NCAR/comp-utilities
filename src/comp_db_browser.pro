@@ -189,6 +189,16 @@ pro comp_db_browser::handle_events, event
         self.current_query = ''
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
+    'start_date': begin
+        widget_control, event.id, get_value=start_date
+        self.current_start_date = start_date
+        self->_update_table, self->get_data(field_names=field_names), field_names
+      end
+    'end_date': begin
+        widget_control, event.id, get_value=start_date
+        self.current_start_date = start_date
+        self->_update_table, self->get_data(field_names=field_names), field_names
+      end
     'limit': begin
         widget_control, event.id, get_value=limit_value
         self.current_limit = limit_value eq '' ? -1L : long(limit_value)
@@ -256,6 +266,16 @@ pro comp_db_browser::create_widgets
   engineering_button = widget_button(type_base, value='engineering', uname='eng')
   cal_button = widget_button(type_base, value='calibration', uname='cal')
   sgs_button = widget_button(type_base, value='SGS', uname='sgs')
+
+  spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
+  dates_label = widget_label(toolbar, value='Dates:')
+  start_text = widget_text(toolbar, value='', uname='start_date', $
+                           scr_xsize=70.0, ysize=1, $
+                           /editable)
+  to_label = widget_label(toolbar, value='to')
+  end_text = widget_text(toolbar, value='', uname='end_date', $
+                           scr_xsize=70.0, ysize=1, $
+                           /editable)
 
   spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
 
@@ -419,6 +439,8 @@ pro comp_db_browser__define
              statusbar: 0L, $
              current_database: '', $
              current_table: '', $
+             current_start_date: '', $
+             current_end_date: '', $
              current_limit: 0L, $
              current_instrument: '', $
              current_type: '', $
