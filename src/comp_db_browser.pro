@@ -37,6 +37,33 @@ pro comp_db_browser_cleanup, tlb
 end
 
 
+;+
+; Take a string representing a date and return it in the form YYYY-MM-DD.
+;
+; :Returns:
+;   string
+;
+; :Params:
+;   date : in, required, type=string
+;     string representing a date in the form YYYYMMDD or YYYY-MM-DD
+;-
+function comp_db_browser_normalizedate, date
+  compile_opt strictarr
+
+  if (date eq '') then return, ''
+
+  case 1 of
+    stregex(date, '[[:digit:]]{8}', /boolean): begin
+        return, string(strmid(date, 0, 4), $
+                       strmid(date, 4, 2), $
+                       strmid(date, 6, 2), $
+                       format='(%"%s-%s-%s")')
+      end
+    stregex(date, '[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}', /boolean): return, date
+  endcase
+end
+
+
 ;= API
 
 ;+
@@ -98,8 +125,6 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
   self.db->getProperty, connected=connected
   if (~connected) then return, !null
 
-  self.db->setProperty, database='MLSO'
-
   limit_present = n_elements(limit) gt 0L || self.current_limit gt 0
   _limit = n_elements(limit) gt 0L ? limit : self.current_limit
 
@@ -109,18 +134,45 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
                               self.current_type, $
                               format='(%"%s_%s")')
 
-  where_clause = self.current_query eq '' ? '' : (' where ' + self.current_query)
+  if (self.current_query ne '') then begin
+    where_clause = 'where ' + self.current_query
+  endif else begin
+    start_date = comp_db_browser_normalizedate(self.current_start_date)
+    end_date = comp_db_browser_normalizedate(self.current_end_date)
+    case 1 of
+      start_date ne '' && end_date ne '': begin
+          where_clause = string(self.current_table, $
+                                start_date, end_date, $
+                                format='(%"WHERE %s.obs_day=mlso_numfiles.day_id AND mlso_numfiles.obs_day BETWEEN ''%s'' AND ''%s''")')
+        end
+      start_date ne '': begin
+          where_clause = string(self.current_table, $
+                                start_date, $
+                                format='(%"WHERE %s.obs_day=mlso_numfiles.day_id AND mlso_numfiles.obs_day >= ''%s''")')
+        end
+      end_date ne '': begin
+          where_clause = string(self.current_table, $
+                                end_date, $
+                                format='(%"WHERE %s.obs_day=mlso_numfiles.day_id AND mlso_numfiles.obs_day <= ''%s''")')
+        end
+      else: where_clause = ''
+    endcase
+  endelse
+
   field_result = self.db->query('describe %s', self.current_table, $
                                 sql_statement=sql_statement, error=error, fields=fields)
   field_names = field_result.field
 
-  result = self.db->query('select * from %s%s%s%s', $
-                          self.current_table, where_clause, $
-                          limit_present ? ' limit' : '', $
-                          limit_present ? (' ' + strtrim(_limit, 2)) : '', $
+  query = string(self.current_table, self.current_table, where_clause, $
+                 limit_present ? ' limit' : '', $
+                 limit_present ? (' ' + strtrim(_limit, 2)) : '', $
+                 format='(%"select %s.* from %s, mlso_numfiles %s%s%s")')
+  self->set_status, string(strtrim(query, 2), format='(%"Querying with ''%s''")')
+  result = self.db->query(query, $
                           sql_statement=sql_statement, error=error, fields=fields)
 
   if (strlowcase(error) ne 'success') then begin
+    print, error
     self->set_status, string(sql_statement, format='(%"problem with SQL statement: ''%s''")')
   endif else begin
     if (n_elements(result) eq 0L) then begin
@@ -129,7 +181,7 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
       *self.fields = fields
     endelse
     self->set_status, string(n_elements(result), $
-                             sql_statement, $
+                             strtrim(sql_statement, 2), $
                              format='(%"%d results for query: ''%s''")')
   endelse
 
@@ -195,8 +247,8 @@ pro comp_db_browser::handle_events, event
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'end_date': begin
-        widget_control, event.id, get_value=start_date
-        self.current_start_date = start_date
+        widget_control, event.id, get_value=end_date
+        self.current_end_date = end_date
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'limit': begin

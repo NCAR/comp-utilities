@@ -151,11 +151,17 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
     self->_axis, x, xinfo, data=_x, tickformat=xtickformat, tickunits=xtickunits
     self->_axis, y, yinfo, data=_y, tickformat=ytickformat, tickunits=ytickunits
     ticklen = -0.02
+
+    ; set up y-axis range
     ymin = min(_y, max=ymax)
+    range = ymax - ymin
+    ymin -= 0.1 * range
+    ymax += 0.1 * range
     if (finite(self.current_ymin)) then ymin = self.current_ymin
     if (finite(self.current_ymax)) then ymax = self.current_ymax
+
     plot, _x, _y, $
-          xstyle=9, ystyle=1, yrange=[ymin, ymax], $
+          xstyle=9, ystyle=9, yrange=[ymin, ymax], $
           xtitle=xinfo.name, $
           ytitle=yinfo.name, $
           xtickformat=xtickformat, $
@@ -164,7 +170,7 @@ pro comp_db_plot::_draw, x, y, xinfo, yinfo, clear=clear, filename=filename
           ytickunits=ytickunits, $
           xticklen=ticklen, yticklen=ticklen * !d.y_size / !d.x_size, $
           psym=3, $
-          charsize=charsize
+          title=string(self.current_table, format='(%"Database table %s")'), charsize=charsize
     self->set_status, string(xinfo.name, yinfo.name, $
                              format='(%"Plotted %s vs %s")')
   endelse
@@ -282,7 +288,7 @@ end
 pro comp_db_plot::create_widgets
   compile_opt strictarr
 
-  draw_xsize = 700.0
+  draw_xsize = 725.0
   draw_ysize = 400.0
   xpad = 1.0
 
@@ -364,6 +370,7 @@ end
 function comp_db_plot::init, table, fields=fields, data=data
   compile_opt strictarr
 
+  self.current_table = table
   self.title = 'Plots of database table ' + table
 
   self.available_columns = ptr_new(where(fields.type ne 253 and fields.type ne 254))
@@ -393,6 +400,7 @@ pro comp_db_plot__define
              draw: 0L, $
              draw_id: 0L, $
              statusbar: 0L, $
+             current_table: '', $
              current_xaxis: 0L, $
              current_yaxis: 0L, $
              current_ymin: 0.0, $
