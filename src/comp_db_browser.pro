@@ -106,14 +106,19 @@ pro comp_db_browser::_update_table, db_values, field_names
   if (n_elements(db_values) eq 0L) then begin
     n_rows = 0
     _field_names = n_elements(field_names) eq 0L ? strarr(8) : field_names
+    n_cols = n_elements(_field_names)
     widget_control, self.table, $
+                    set_value=strarr(n_cols), $
+                    xsize=n_cols, $
                     ysize=n_rows, $
                     column_labels=_field_names
   endif else begin
     widget_control, self.table, $
-                    set_value=db_values, $
+                    set_value=db_values
+    widget_control, self.table, $
+                    ysize=n_elements(db_values)
+    widget_control, self.table, $
                     xsize=n_tags(db_values), $
-                    ysize=n_elements(db_values), $
                     column_labels=field_names
   endelse
 end
