@@ -334,6 +334,7 @@ pro comp_db_browser::create_widgets
   instrument_base = widget_base(instrument_toolbar, xpad=0.0, ypad=0.0, /exclusive, /row)
   comp_button = widget_button(instrument_base, value='CoMP', uname='comp')
   kcor_button = widget_button(instrument_base, value='KCor', uname='kcor')
+  widget_control, comp_button, /set_button
 
   spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
 
