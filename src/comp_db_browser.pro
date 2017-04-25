@@ -180,8 +180,8 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
                           sql_statement=sql_statement, error=error, fields=fields)
 
   if (strlowcase(error) ne 'success') then begin
-    print, error
-    self->set_status, string(sql_statement, format='(%"problem with SQL statement: ''%s''")')
+    self->set_status, string(sql_statement, $
+                             format='(%"Problem with SQL statement: ''%s''")')
   endif else begin
     if (n_elements(result) eq 0L) then begin
       *self.fields = !null
@@ -224,8 +224,13 @@ pro comp_db_browser::handle_events, event
 
         widget_control, self.tlb, update=1
       end
-    'instrument': begin
-        self.current_instrument = strlowcase(event.str)
+    'comp': begin
+        self.current_instrument = 'comp'
+        self.current_query = ''
+        self->_update_table, self->get_data(field_names=field_names), field_names
+      end
+    'kcor': begin
+        self.current_instrument = 'kcor'
         self.current_query = ''
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
@@ -279,6 +284,12 @@ pro comp_db_browser::handle_events, event
         self.current_query = ''
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
+    'cmdline': begin
+        widget_control, self.table, get_value=data
+        geometry = widget_info(self.table, /geometry)
+        if (geometry.xsize eq 0L || geometry.ysize eq 0L) then data = !null
+        (scope_varfetch('data', /enter, level=1)) = data
+      end
     'plot': begin
         widget_control, self.table, get_value=data
         if (n_elements(*self.fields) gt 0L) then begin
@@ -305,7 +316,7 @@ end
 pro comp_db_browser::create_widgets
   compile_opt strictarr
 
-  table_xsize = 900
+  table_xsize = 1050
   table_ysize = 600
   xpad = 0
 
@@ -317,15 +328,18 @@ pro comp_db_browser::create_widgets
   space = 10.0
   toolbar = widget_base(self.tlb, /row, uname='toolbar', $
                         /base_align_center, space=0.0)
-  instrument_label = widget_label(toolbar, value='Instrument:')
-  database_list = widget_combobox(toolbar, $
-                                  value=['CoMP', 'KCor'], $
-                                  uname='instrument')
+
+  instrument_toolbar = widget_base(toolbar, frame=1, xpad=0.0, ypad=0.0, /row)
+  instrument_label = widget_label(instrument_toolbar, value='Instrument:')
+  instrument_base = widget_base(instrument_toolbar, xpad=0.0, ypad=0.0, /exclusive, /row)
+  comp_button = widget_button(instrument_base, value='CoMP', uname='comp')
+  kcor_button = widget_button(instrument_base, value='KCor', uname='kcor')
 
   spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
 
-  type_label = widget_label(toolbar, value='Type:')
-  type_base = widget_base(toolbar, xpad=0.0, ypad=0.0, /exclusive, /row)
+  type_toolbar = widget_base(toolbar, frame=1, xpad=0.0, ypad=0.0, /row)
+  type_label = widget_label(type_toolbar, value='Type:')
+  type_base = widget_base(type_toolbar, xpad=0.0, ypad=0.0, /exclusive, /row)
   images_button = widget_button(type_base, value='images', uname='images')
   widget_control, images_button, /set_button
   engineering_button = widget_button(type_base, value='engineering', uname='eng')
@@ -358,6 +372,13 @@ pro comp_db_browser::create_widgets
   clear_query_button = widget_button(toolbar, /bitmap, uname='clear_query', $
                               tooltip='Clear query', $
                               value=filepath('delete.bmp', subdir=bitmapdir))
+
+  spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
+
+  cmdline_button = widget_button(toolbar, /bitmap, uname='cmdline', $
+                                 tooltip='Export to command line', $
+                                 value=filepath('commandline.bmp', $
+                                                subdir=bitmapdir))
   plot_button = widget_button(toolbar, /bitmap, uname='plot', $
                               tooltip='Plot', $
                               value=filepath('plot.bmp', subdir=bitmapdir))
@@ -366,7 +387,7 @@ pro comp_db_browser::create_widgets
   self.current_instrument = 'comp'
   self.current_type = 'img'
 
-  n_rows = 500L
+  n_rows = 0L
   n_columns = 10L
 
   self.table = widget_table(self.tlb, $
