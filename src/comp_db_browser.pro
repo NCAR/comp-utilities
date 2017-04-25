@@ -123,7 +123,10 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
   compile_opt strictarr
 
   self.db->getProperty, connected=connected
-  if (~connected) then return, !null
+  if (~connected) then begin
+    self->set_status, 'Not connected to database'
+    return, !null
+  endif
 
   limit_present = n_elements(limit) gt 0L || self.current_limit gt 0
   _limit = n_elements(limit) gt 0L ? limit : self.current_limit
@@ -133,6 +136,11 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
                                 : self.current_instrument, $
                               self.current_type, $
                               format='(%"%s_%s")')
+
+  if (self.current_table eq 'comp_sci') then begin
+    self->set_status, 'No science table for CoMP'
+    return, !null
+  endif
 
   if (self.current_query ne '') then begin
     where_clause = 'where ' + self.current_query
@@ -236,6 +244,11 @@ pro comp_db_browser::handle_events, event
         self.current_query = ''
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
+    'sci': begin
+        self.current_type = 'sci'
+        self.current_query = ''
+        self->_update_table, self->get_data(field_names=field_names), field_names
+      end
     'sgs': begin
         self.current_type = 'sgs'
         self.current_query = ''
@@ -317,6 +330,7 @@ pro comp_db_browser::create_widgets
   widget_control, images_button, /set_button
   engineering_button = widget_button(type_base, value='engineering', uname='eng')
   cal_button = widget_button(type_base, value='calibration', uname='cal')
+  sci_button = widget_button(type_base, value='science', uname='sci')
   sgs_button = widget_button(type_base, value='SGS', uname='sgs')
 
   spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
