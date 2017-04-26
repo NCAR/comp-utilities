@@ -531,7 +531,7 @@ pro comp_db_browser::cleanup
   compile_opt strictarr
 
   obj_destroy, self.db
-  heap_free, *self.current_data
+  if (n_elements(*self.current_data) gt 0L) then heap_free, *self.current_data
 
   ptr_free, self.fields, self.current_data
 end
