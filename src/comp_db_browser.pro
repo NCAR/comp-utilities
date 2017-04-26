@@ -47,9 +47,10 @@ end
 ;   date : in, required, type=string
 ;     string representing a date in the form YYYYMMDD or YYYY-MM-DD
 ;-
-function comp_db_browser_normalizedate, date
+function comp_db_browser::_normalizedate, date, name=name, error=error
   compile_opt strictarr
 
+  error = 0L
   if (date eq '') then return, ''
 
   case 1 of
@@ -60,6 +61,14 @@ function comp_db_browser_normalizedate, date
                        format='(%"%s-%s-%s")')
       end
     stregex(date, '[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2}', /boolean): return, date
+    else: begin
+        error = 1L
+        self->set_status, string(name, format='(%"Error parsing %s date")')
+        text = widget_info(self.tlb, find_by_uname=name + '_date')
+        widget_control, text, get_value=value
+        widget_control, text, set_text_select=[0, strlen(value)]
+        return, ''
+      end
   endcase
 end
 
@@ -100,6 +109,44 @@ pro comp_db_browser::set_status, msg, clear=clear
 end
 
 
+;+
+; Filter BLOB values, i.e., pointer type.
+;-
+function comp_db_browser::_escape_values, db_values
+  compile_opt strictarr
+
+  has_pointers = 0B
+  for f = 0L, n_tags(db_values) - 1L do begin
+    if (size(db_values[0].(f), /type) eq 10) then begin
+      has_pointers = 1B
+      break
+    endif
+  endfor
+
+  if (has_pointers) then begin
+    tnames = tag_names(db_values)
+    s = {}
+    for f = 0L, n_tags(db_values) - 1L do begin
+      s = create_struct(s, $
+                        tnames[f], $
+                        size(db_values[0].(f), /type) eq 10 ? '' : db_values[0].(f))
+    endfor
+
+    _db_values = replicate(s, n_elements(db_values))
+    for f = 0L, n_tags(db_values) - 1L do begin
+      if (size(db_values[0].(f), /type) eq 10) then begin
+        _db_values.(f) = strarr(n_elements(db_values)) + '<BLOB>'
+      endif else begin
+        _db_values.(f) = db_values.(f)
+      endelse
+    endfor
+    return, _db_values
+  endif
+
+  return, db_values
+end
+
+
 pro comp_db_browser::_update_table, db_values, field_names
   compile_opt strictarr
 
@@ -108,18 +155,21 @@ pro comp_db_browser::_update_table, db_values, field_names
     _field_names = n_elements(field_names) eq 0L ? strarr(8) : field_names
     n_cols = n_elements(_field_names)
     widget_control, self.table, $
-                    set_value=strarr(n_cols), $
                     xsize=n_cols, $
                     ysize=n_rows, $
                     column_labels=_field_names
-  endif else begin
     widget_control, self.table, $
-                    set_value=db_values
+                    set_value=strarr(n_cols)
+  endif else begin
+    _db_values = self->_escape_values(db_values)
+
     widget_control, self.table, $
                     ysize=n_elements(db_values)
     widget_control, self.table, $
                     xsize=n_tags(db_values), $
                     column_labels=field_names
+    widget_control, self.table, $
+                    set_value=_db_values
   endelse
 end
 
@@ -150,8 +200,12 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
   if (self.current_query ne '') then begin
     where_clause = 'where ' + self.current_query
   endif else begin
-    start_date = comp_db_browser_normalizedate(self.current_start_date)
-    end_date = comp_db_browser_normalizedate(self.current_end_date)
+    start_date = self->_normalizedate(self.current_start_date, $
+                                      name='start', error=start_error)
+    end_date = self->_normalizedate(self.current_end_date, $
+                                    name='end', error=end_error)
+    if (start_error || end_error) then return, !null
+
     case 1 of
       start_date ne '' && end_date ne '': begin
           where_clause = string(self.current_table, $
@@ -168,7 +222,8 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
                                 end_date, $
                                 format='(%"WHERE %s.obs_day=mlso_numfiles.day_id AND mlso_numfiles.obs_day <= ''%s''")')
         end
-      else: where_clause = ''
+      else: where_clause = string(self.current_table, $
+                                  format='(%"WHERE %s.obs_day=mlso_numfiles.day_id")')
     endcase
   endelse
 
@@ -197,6 +252,9 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
                              strtrim(sql_statement, 2), $
                              format='(%"%d results for query: ''%s''")')
   endelse
+
+  if (n_elements(*self.current_data) gt 0L) then heap_free, *self.current_data
+  *self.current_data = result
 
   return, result
 end
@@ -296,9 +354,9 @@ pro comp_db_browser::handle_events, event
         (scope_varfetch('data', /enter, level=1)) = data
       end
     'plot': begin
-        widget_control, self.table, get_value=data
         if (n_elements(*self.fields) gt 0L) then begin
-          comp_db_plot, self.current_table, fields=*self.fields, data=data
+          comp_db_plot, self.current_table, $
+                        fields=*self.fields, data=*self.current_data
         endif
       end
     else:
@@ -473,11 +531,13 @@ pro comp_db_browser::cleanup
   compile_opt strictarr
 
   obj_destroy, self.db
-  ptr_free, self.fields
+  heap_free, *self.current_data
+
+  ptr_free, self.fields, self.current_data
 end
 
 
-function comp_db_browser::init, config_filename, section=section
+function comp_db_browser::init, config_filename, config_section=config_section
   compile_opt strictarr
 
   self.title = 'MLSO database browser'
@@ -488,15 +548,19 @@ function comp_db_browser::init, config_filename, section=section
 
   config = mg_read_config(_config_filename)
 
-  config->getProperty, sections=sections
-
-  _section = n_elements(section) eq 0L ? sections[0] : section
+  if (n_elements(config_section) eq 0L) then begin
+    config->getProperty, sections=sections
+    _section = sections[0]
+  endif else begin
+    _section = config_section
+  endelse
 
   obj_destroy, config
 
   self.fields = ptr_new(/allocate_heap)
   self.current_limit = 500
   self.current_type = 'img'
+  self.current_data = ptr_new(/allocate_heap)
 
   self.db = mgdbmysql()
 
@@ -531,6 +595,7 @@ pro comp_db_browser__define
              table: 0L, $
              statusbar: 0L, $
              current_database: '', $
+             current_data: ptr_new(), $
              current_table: '', $
              current_start_date: '', $
              current_end_date: '', $
@@ -550,13 +615,18 @@ end
 ;     configuration file with login information for database
 ;
 ; :Keywords:
-;   section : in, optional, type=string
+;   config_section : in, optional, type=string
 ;     section of the configuration file to use; defaults to the first
 ;     section
 ;-
-pro comp_db_browser, config_filename, section=section
+pro comp_db_browser, config_filename, config_section=config_section
   compile_opt strictarr
   on_error, 2
 
-  browser = obj_new('comp_db_browser', config_filename, section=section)
+  _config_filename = n_elements(config_filename) eq 0L $
+                       ? '~/.mysqldb' $
+                       : config_filename
+  browser = obj_new('comp_db_browser', $
+                    _config_filename, $
+                    config_section=config_section)
 end
