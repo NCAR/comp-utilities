@@ -110,6 +110,27 @@ end
 
 
 ;+
+; This routine decodes blobs. Eventually, this routine should be replaced with a
+; database lookup or the size of the blob should be in a column in the same
+; table as the blob.
+;-
+function comp_db_browser::_decode, values, fieldname
+  compile_opt strictarr
+
+  if (self.current_instrument eq 'kcor' && self.current_type eq 'sci') then begin
+    case strlowcase(fieldname) of
+      'intensity': return, float(values, 0, 90)
+      'intensity_stddev': return, float(values, 0, 90)
+      'r108': return, float(values, 0, 720)
+      'r13': return, float(values, 0, 720)
+      'r18': return, float(values, 0, 720)
+      else: return, values
+    endcase
+  endif else return, values
+end
+
+
+;+
 ; Filter BLOB values, i.e., pointer type.
 ;-
 function comp_db_browser::_escape_values, db_values
@@ -254,6 +275,19 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
   endelse
 
   if (n_elements(*self.current_data) gt 0L) then heap_free, *self.current_data
+
+  ; decode data
+  if (n_elements(result) gt 0L) then begin
+    tnames = tag_names(result)
+    for f = 0L, n_tags(result) - 1L do begin
+      if (size(result[0].(f), /type) eq 10) then begin
+        for i = 0L, n_elements(result) - 1L do begin
+          *result[i].(f) = self->_decode(*result[i].(f), tnames[f])
+        endfor
+      endif
+    endfor
+  endif
+
   *self.current_data = result
 
   return, result
@@ -348,15 +382,16 @@ pro comp_db_browser::handle_events, event
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'cmdline': begin
-        widget_control, self.table, get_value=data
-        geometry = widget_info(self.table, /geometry)
-        if (geometry.xsize eq 0L || geometry.ysize eq 0L) then data = !null
-        (scope_varfetch('data', /enter, level=1)) = data
+        (scope_varfetch('data', /enter, level=1)) = *self.current_data
       end
     'plot': begin
         if (n_elements(*self.fields) gt 0L) then begin
-          comp_db_plot, self.current_table, $
-                        fields=*self.fields, data=*self.current_data
+          if (self.current_type eq 'sci') then begin
+            print, widget_info(self.table, /table_select)
+          endif else begin
+            comp_db_plot, self.current_table, $
+                          fields=*self.fields, data=*self.current_data
+          endelse
         endif
       end
     else:
