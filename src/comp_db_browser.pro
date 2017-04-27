@@ -110,9 +110,10 @@ end
 
 
 ;+
-; This routine decodes blobs. Eventually, this routine should be replaced with a
-; database lookup or the size of the blob should be in a column in the same
-; table as the blob.
+; This routine decodes blobs.
+;
+; TODO: Eventually, this routine should be replaced with a database lookup or
+; the size of the blob should be in a column in the same table as the blob.
 ;-
 function comp_db_browser::_decode, values, fieldname
   compile_opt strictarr
@@ -406,7 +407,7 @@ pro comp_db_browser::handle_events, event
 
             did_intensity = 0B
 
-            ; TODO: should be found in a database
+            ; TODO: should be found in a database instead of hardcoded here
             radii = findgen(90) * 0.02 + 1.05
 
             for s = 0L, n_elements(selected_fields) - 1L do begin
