@@ -250,19 +250,26 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
 
   field_result = self.db->query('describe %s', self.current_table, $
                                 sql_statement=sql_statement, error=error, fields=fields)
+  if (strlowcase(error) ne 'success') then begin
+    self->set_status, string(sql_statement, error, $
+                             format='(%"Problem with SQL statement: ''%s'' %s")')
+    return, !null
+  endif
+
   field_names = field_result.field
 
   query = string(self.current_table, self.current_table, where_clause, $
                  limit_present ? ' limit' : '', $
                  limit_present ? (' ' + strtrim(_limit, 2)) : '', $
-                 format='(%"select %s.* from %s, mlso_numfiles %s%s%s")')
+                 format='(%"select %s.* from %s, mlso_numfiles %s order by mlso_numfiles.obs_day %s%s")')
   self->set_status, string(strtrim(query, 2), format='(%"Querying with ''%s''")')
   result = self.db->query(query, $
                           sql_statement=sql_statement, error=error, fields=fields)
 
   if (strlowcase(error) ne 'success') then begin
-    self->set_status, string(sql_statement, $
-                             format='(%"Problem with SQL statement: ''%s''")')
+    self->set_status, string(sql_statement, error, $
+                             format='(%"Problem with SQL statement: ''%s'' %s")')
+    return, !null
   endif else begin
     if (n_elements(result) eq 0L) then begin
       *self.fields = !null
@@ -386,8 +393,84 @@ pro comp_db_browser::handle_events, event
       end
     'plot': begin
         if (n_elements(*self.fields) gt 0L) then begin
+          field_names = (*self.fields).name
           if (self.current_type eq 'sci') then begin
-            print, widget_info(self.table, /table_select)
+            selection = widget_info(self.table, /table_select)
+
+            start_row = selection[1]
+            end_row = selection[3]
+            n_rows = selection[3] - selection[1] + 1
+
+            selected_ind = indgen(selection[2] - selection[0] + 1) + selection[0]
+            selected_fields = field_names[selected_ind]
+
+            did_intensity = 0B
+
+            ; TODO: should be found in a database
+            radii = findgen(90) * 0.02 + 1.05
+
+            for s = 0L, n_elements(selected_fields) - 1L do begin
+              if (~did_intensity) then begin
+                switch strlowcase(selected_fields[s]) of
+                  'intensity':
+                  'intensity_stddev': begin
+                      for r = start_row, end_row do begin
+                        int = *(*self.current_data)[r].intensity
+                        int_stddev = *(*self.current_data)[r].intensity_stddev
+
+                        title = string((*self.current_data)[r].file_name, $
+                                       format='(%"Radial intensity for %s")')
+                        if (r eq start_row) then begin
+                          window, xsize=1024, ysize=400, /free, $
+                                  title=title
+                          plot, radii, int, $
+                                xstyle=9, ystyle=8, /ylog, $
+                                xtitle='radius (R_Sun)', ytitle='parts per million'
+                        endif else oplot, radii, int
+                        oplot, radii, int + int_stddev, linestyle=1
+                        oplot, radii, int - int_stddev, linestyle=1
+                        did_intensity = 1B
+                      endfor
+                    
+                      break
+                    end
+                  else:
+                endswitch
+              endif
+            endfor
+
+            for s = 0L, n_elements(selected_fields) - 1L do begin
+              case strlowcase(selected_fields[s]) of
+                'r108': begin
+                    map = fltarr(n_rows, 720)
+                    for r = start_row, end_row do begin
+                      map[r - start_row, *] = *(*self.current_data)[r].r108
+                    endfor
+                    title = string('1.08 R_Sun', format='(%"Synoptic map for %s")')
+                    window, xsize=30 * n_rows + 50, ysize=400, /free, title=title
+                    mg_image, map, /axes, yticklen=-0.01
+                  end
+                'r13': begin
+                    map = fltarr(n_rows, 720)
+                    for r = start_row, end_row do begin
+                      map[r - start_row, *] = *(*self.current_data)[r].r13
+                    endfor
+                    title = string('1.3 R_Sun', format='(%"Synoptic map for %s")')
+                    window, xsize=30 * n_rows + 50, ysize=400, /free, title=title
+                    mg_image, map, /axes, yticklen=-0.01
+                  end
+                'r18': begin
+                    map = fltarr(n_rows, 720)
+                    for r = start_row, end_row do begin
+                      map[r - start_row, *] = *(*self.current_data)[r].r18
+                    endfor
+                    title = string('1.8 R_Sun', format='(%"Synoptic map for %s")')
+                    window, xsize=30 * n_rows + 50, ysize=400, /free, title=title
+                    mg_image, map, /axes, yticklen=-0.01
+                  end
+                else:
+              endcase
+            endfor
           endif else begin
             comp_db_plot, self.current_table, $
                           fields=*self.fields, data=*self.current_data
