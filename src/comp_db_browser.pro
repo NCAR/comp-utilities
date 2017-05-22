@@ -426,6 +426,7 @@ pro comp_db_browser::handle_events, event
                                   title=title
                           plot, radii, int, $
                                 xstyle=9, ystyle=8, /ylog, $
+                                yrange=[1e-4, 1.0], $
                                 xtitle='radius (R_Sun)', ytitle='parts per million'
                         endif else oplot, radii, int
                         oplot, radii, int + int_stddev, linestyle=1
