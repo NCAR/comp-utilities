@@ -40,6 +40,8 @@ message(STATUS "Build date = ${comp_utilities_BUILD_DATE}")
 find_package(IDL REQUIRED)
 find_package(IDLdoc)
 
+include_directories(${IDL_INCLUDE_DIR})
+
 add_subdirectory(lib)
 add_subdirectory(scripts)
 add_subdirectory(src)

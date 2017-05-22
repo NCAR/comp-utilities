@@ -195,14 +195,16 @@ function mgdbmysql::_get_type, field
     2: return, 0S     ; MYSQL_TYPE_SHORT
     3: return, 0L     ; MYSQL_TYPE_LONG
     4: return, 0.0    ; MYSQL_TYPE_FLOAT
+    5: return, 0.0D   ; MYSQL_TYPE_DOUBLE
     8: return, 0ULL   ; MYSQL_TYPE_LONGLONG
+    9: return, 0L     ; MYSQL_TYPE_INT24
     10: return, ''    ; MYSQL_TYPE_DATE
     12: return, ''    ; MYSQL_TYPE_DATETIME
     252: begin        ; MYSQL_TYPE_BLOB
         if (field.charsetnr eq 33) then begin
           return, ''
         endif else begin
-          return, ptr_new(/allocate_heap)
+          return, ptr_new()
         endelse
       end
     253: return, ''   ; MYSQL_TYPE_VARSTRING
@@ -210,7 +212,6 @@ function mgdbmysql::_get_type, field
     else: message, 'unsupported type: ' + strtrim(field.type, 2)
   endcase
 end
-
 
 
 ;+
@@ -262,6 +263,15 @@ function mgdbmysql::_get_results, result, fields=fields, n_rows=n_rows
   endfor
 
   query_result = replicate(row_result, n_rows)
+
+  ; must allocate ptr columns
+  for f = 0L, n_fields - 1L do begin
+    if (size(self->_get_type(fields[f]), /type) eq 10) then begin
+      query_result.(f) = ptrarr(n_rows, /allocate_heap)
+    endif
+  endfor
+
+  ; populate result
   for r = 0L, n_rows - 1L do begin
     row = mg_mysql_fetch_row(result)
     lengths = mg_mysql_fetch_lengths(result)
@@ -291,6 +301,26 @@ end
 ;= API
 
 ;+
+; Creates a properly escaped string from any numeric array.
+;
+; :Returns:
+;   string
+;
+; :Params:
+;   from : in, required, type=numeric/string
+;     variable
+;-
+function mgdbmysql::escape_string, from
+  compile_opt strictarr
+
+  n_bytes = mg_typesize(size(from, /type)) * n_elements(from)
+  to = bytarr(2 * n_bytes + 1)
+  n_bytes_to = mg_mysql_real_escape_string(self.connection, to, from, n_bytes)
+  return, string(to[0:n_bytes_to - 1])
+end
+
+
+;+
 ; Returns the error message for the last failed MySQL API routine.
 ;
 ; :Returns:
@@ -314,7 +344,8 @@ end
 ;     query string, may be C format string with `arg1`-`arg12` substituted into
 ;     it
 ;   arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10,
-;   arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, arg20 : in, optional, type=any
+;   arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18,
+;   arg19, arg20 : in, optional, type=any
 ;     arguments to be substituted into `sql_query`
 ;
 ; :Keywords:
@@ -339,6 +370,7 @@ function mgdbmysql::query, sql_query, $
                            error_message=error_message
   compile_opt strictarr
   on_error, 2
+  on_ioerror, bad_fmt
 
   case n_params() of
      0: _sql_query = ''
@@ -368,7 +400,7 @@ function mgdbmysql::query, sql_query, $
   status = mg_mysql_query(self.connection, _sql_query)
   if (status ne 0) then begin
     error_message = self->last_error_message()
-    if (self.quiet || arg_present(error_message)) then begin
+    if (self.quiet || arg_present(status) || arg_present(error_message)) then begin
       return, !null
     endif else begin
       message, error_message
@@ -378,7 +410,8 @@ function mgdbmysql::query, sql_query, $
   result = mg_mysql_store_result(self.connection)
   if (result eq 0) then begin
     error_message = self->last_error_message()
-    if (self.quiet || arg_present(error_message)) then begin
+    status = 1L
+    if (self.quiet || arg_present(status) || arg_present(error_message)) then begin
       return, !null
     endif else begin
       message, error_message
@@ -390,6 +423,13 @@ function mgdbmysql::query, sql_query, $
   mg_mysql_free_result, result
 
   return, query_result
+
+  bad_fmt:
+  status = 1
+  error_message = !error_state.msg
+  _sql_query = '<undefined>'
+  fields = !null
+  return, !null
 end
 
 
@@ -421,46 +461,285 @@ pro mgdbmysql::execute, sql_query, $
                         arg6, arg7, arg8, arg9, arg10, $
                         arg11, arg12, arg13, arg14, arg15, $
                         arg16, arg17, arg18, arg19, arg20, $
+                        arg21, arg22, arg23, arg24, arg25, $
+                        arg26, arg27, arg28, arg29, arg30, $
+                        arg31, arg32, arg33, arg34, arg35, $
+                        arg36, arg37, arg38, arg39, arg40, $
+                        arg41, arg42, arg43, arg44, arg45, $
+                        arg46, arg47, arg48, arg49, arg50, $
                         sql_statement=_sql_query, $
                         status=status, $
                         error_message=error_message
   compile_opt strictarr
   on_error, 2
+  on_ioerror, bad_fmt
 
+  sql_query_fmt = '(%"' + sql_query + '")'
   case n_params() of
      0: _sql_query = ''
      1: _sql_query = sql_query
-     2: _sql_query = string(arg1, format='(%"' + sql_query + '")')
-     3: _sql_query = string(arg1, arg2, format='(%"' + sql_query + '")')
-     4: _sql_query = string(arg1, arg2, arg3, format='(%"' + sql_query + '")')
-     5: _sql_query = string(arg1, arg2, arg3, arg4, format='(%"' + sql_query + '")')
-     6: _sql_query = string(arg1, arg2, arg3, arg4, arg5, format='(%"' + sql_query + '")')
-     7: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, format='(%"' + sql_query + '")')
-     8: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, format='(%"' + sql_query + '")')
-     9: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, format='(%"' + sql_query + '")')
-    10: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, format='(%"' + sql_query + '")')
-    11: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, format='(%"' + sql_query + '")')
-    12: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, format='(%"' + sql_query + '")')
-    13: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, format='(%"' + sql_query + '")')
-    14: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, format='(%"' + sql_query + '")')
-    15: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, format='(%"' + sql_query + '")')
-    16: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, format='(%"' + sql_query + '")')
-    17: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, format='(%"' + sql_query + '")')
-    18: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, format='(%"' + sql_query + '")')
-    19: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, format='(%"' + sql_query + '")')
-    20: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, format='(%"' + sql_query + '")')
-    21: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13, arg14, arg15, arg16, arg17, arg18, arg19, arg20, format='(%"' + sql_query + '")')
+     2: _sql_query = string(arg1, format=sql_query_fmt)
+     3: _sql_query = string(arg1, arg2, format=sql_query_fmt)
+     4: _sql_query = string(arg1, arg2, arg3, format=sql_query_fmt)
+     5: _sql_query = string(arg1, arg2, arg3, arg4, format=sql_query_fmt)
+     6: _sql_query = string(arg1, arg2, arg3, arg4, arg5, format=sql_query_fmt)
+     7: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, $
+                            format=sql_query_fmt)
+     8: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, $
+                            format=sql_query_fmt)
+     9: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            format=sql_query_fmt)
+    10: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, $
+                            format=sql_query_fmt)
+    11: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, $
+                            format=sql_query_fmt)
+    12: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, $
+                            format=sql_query_fmt)
+    13: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, $
+                            format=sql_query_fmt)
+    14: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, $
+                            format=sql_query_fmt)
+    15: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, $
+                            format=sql_query_fmt)
+    16: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            format=sql_query_fmt)
+    17: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, $
+                            format=sql_query_fmt)
+    18: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, $
+                            format=sql_query_fmt)
+    19: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, $
+                            format=sql_query_fmt)
+    20: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, $
+                            format=sql_query_fmt)
+    21: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, $
+                            format=sql_query_fmt)
+    22: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, $
+                            format=sql_query_fmt)
+    23: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            format=sql_query_fmt)
+    24: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, $
+                            format=sql_query_fmt)
+    25: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, $
+                            format=sql_query_fmt)
+    26: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, $
+                            format=sql_query_fmt)
+    27: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, $
+                            format=sql_query_fmt)
+    28: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, $
+                            format=sql_query_fmt)
+    29: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, $
+                            format=sql_query_fmt)
+    30: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            format=sql_query_fmt)
+    31: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, $
+                            format=sql_query_fmt)
+    32: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, $
+                            format=sql_query_fmt)
+    33: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, $
+                            format=sql_query_fmt)
+    34: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, $
+                            format=sql_query_fmt)
+    35: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, $
+                            format=sql_query_fmt)
+    36: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, $
+                            format=sql_query_fmt)
+    37: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            format=sql_query_fmt)
+    38: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, $
+                            format=sql_query_fmt)
+    39: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, $
+                            format=sql_query_fmt)
+    40: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, $
+                            format=sql_query_fmt)
+    41: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, $
+                            format=sql_query_fmt)
+    42: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, $
+                            format=sql_query_fmt)
+    43: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, arg42, $
+                            format=sql_query_fmt)
+    44: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, arg42, arg43, $
+                            format=sql_query_fmt)
+    45: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, arg42, arg43, $
+                            arg44, $
+                            format=sql_query_fmt)
+    46: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, arg42, arg43, $
+                            arg44, arg45, $
+                            format=sql_query_fmt)
+    47: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, arg42, arg43, $
+                            arg44, arg45, arg46, $
+                            format=sql_query_fmt)
+    48: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, arg42, arg43, $
+                            arg44, arg45, arg46, arg47, $
+                            format=sql_query_fmt)
+    49: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, arg42, arg43, $
+                            arg44, arg45, arg46, arg47, arg48, $
+                            format=sql_query_fmt)
+    50: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, arg42, arg43, $
+                            arg44, arg45, arg46, arg47, arg48, arg49, $
+                            format=sql_query_fmt)
+    51: _sql_query = string(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, $
+                            arg9, arg10, arg11, arg12, arg13, arg14, arg15, $
+                            arg16, arg17, arg18, arg19, arg20, arg21, arg22, $
+                            arg23, arg24, arg25, arg26, arg27, arg28, arg29, $
+                            arg30, arg31, arg32, arg33, arg34, arg35, arg36, $
+                            arg37, arg38, arg39, arg40, arg41, arg42, arg43, $
+                            arg44, arg45, arg46, arg47, arg48, arg49, arg50, $
+                            format=sql_query_fmt)
   endcase
 
   status = mg_mysql_query(self.connection, _sql_query)
   if (status ne 0) then begin
     error_message = self->last_error_message()
-    if (self.quiet || arg_present(error_message)) then begin
+    if (self.quiet || arg_present(status) || arg_present(error_message)) then begin
       return
     endif else begin
       message, error_message
     endelse
-  endif else error_message = 'Success'
+  endif else begin
+    error_message = 'Success'
+  endelse
+
+  return
+
+  bad_fmt:
+  status = 1
+  error_message = !error_state.msg
+  _sql_query = '<undefined>'
 end
 
 
@@ -477,14 +756,26 @@ end
 ; :Keywords:
 ;   n_tables : out, optional, type=long
 ;     set to a named variable to retrieve the number of matching tables
+;   status : out, optional, type=long
+;     set to a named variable to retrieve the status code from the
+;     query, 0 for success
+;   error_message : out, optional, type=string
+;     MySQL error message; "Success" if not error
 ;-
-function mgdbmysql::list_tables, wildcard, n_tables=n_tables
+function mgdbmysql::list_tables, wildcard, $
+                                 n_tables=n_tables, $
+                                 status=status, $
+                                 error_message=error_message
   compile_opt strictarr
+
+  status = 0L
+  error_message = 'Success'
 
   result = mg_mysql_list_tables(self.connection, wildcard)
   if (result eq 0) then begin
+    status = 1L
     error_message = self->last_error_message()
-    if (self.quiet || arg_present(error_message)) then begin
+    if (self.quiet || arg_present(status) || arg_present(error_message)) then begin
       return, !null
     endif else begin
       message, error_message
@@ -511,14 +802,26 @@ end
 ; :Keywords:
 ;   n_databases : out, optional, type=long
 ;     set to a named variable to retrieve the number of matching databases
+;   status : out, optional, type=long
+;     set to a named variable to retrieve the status code from the
+;     query, 0 for success
+;   error_message : out, optional, type=string
+;     MySQL error message; "Success" if not error
 ;-
-function mgdbmysql::list_dbs, wildcard, n_databases=n_databases
+function mgdbmysql::list_dbs, wildcard, $
+                              n_databases=n_databases, $
+                              status=status, $
+                              error_message=error_message
   compile_opt strictarr
+
+  status = 0L
+  error_message = 'Success'
 
   result = mg_mysql_list_dbs(self.connection, wildcard)
   if (result eq 0) then begin
+    status = 1L
     error_message = self->last_error_message()
-    if (self.quiet || arg_present(error_message)) then begin
+    if (self.quiet || arg_present(status) || arg_present(error_message)) then begin
       return, !null
     endif else begin
       message, error_message
@@ -554,8 +857,11 @@ end
 ;     name of section in `config_filename` containing connection information;
 ;     this section must contain `user` and `password` with optional values
 ;     for `host`, `database`, `port`, and `socket`
+;   status : out, optional, type=integer
+;     set to a named variable to retrieve the status of the connection, 0 for
+;     success; if not 0, `ERROR_MESSAGE` should be set to a non-empty message
 ;   error_message : out, optional, type=string
-;     MySQL error message
+;     set to a named variable to retrieve an MySQL error message
 ;-
 pro mgdbmysql::connect, host=host, $
                         user=user, $
@@ -565,18 +871,27 @@ pro mgdbmysql::connect, host=host, $
                         socket=socket, $
                         config_filename=config_filename, $
                         config_section=config_section, $
+                        status=status, $
                         error_message=error_message
   compile_opt strictarr
   on_error, 2
 
+  status = 0L
+  error_message = 'Success'
   self.connected = 0B
 
   if (n_elements(config_filename) gt 0) then begin
     c = mg_read_config(config_filename)
     if (n_elements(config_section) gt 0 && config_section ne '') then begin
       if (~c->has_section(config_section)) then begin
-        message, string(config_section, $
-                        format='(%"CONFIG_SECTION %s not found")')
+        msg = string(config_section, $
+                     format='(%"CONFIG_SECTION %s not found")')
+        if (arg_present(status) || arg_present(error_message)) then begin
+          status = 1L
+          error_message = msg
+        endif else begin
+          message, msg
+        endelse
       endif
     endif
 
@@ -596,13 +911,25 @@ pro mgdbmysql::connect, host=host, $
     _user = c->get('user', section=config_section, found=user_found)
     _user = n_elements(user) gt 0 ? user : _user
     if (~user_found && n_elements(user) eq 0) then begin
-      message, 'USER required'
+      msg = 'USER required'
+      if (arg_present(status) || arg_present(error_message)) then begin
+        status = 1L
+        error_message = msg
+      endif else begin
+        message, msg
+      endelse
     endif
 
     _password = c->get('password', section=config_section, found=password_found)
     _password = n_elements(password) gt 0 ? password : _password
     if (~password_found && n_elements(password) eq 0) then begin
-      message, 'PASSWORD required'
+      msg = 'PASSWORD required'
+      if (arg_present(status) || arg_present(error_message)) then begin
+        status = 1L
+        error_message = msg
+      endif else begin
+        message, msg
+      endelse
     endif
   endif else begin
     self.host = n_elements(host) eq 0 ? 'localhost' : host
@@ -623,8 +950,8 @@ pro mgdbmysql::connect, host=host, $
     error_message = self->last_error_message()
     mg_mysql_close, self.connection
     self.connection = 0UL
-
-    if (self.quiet || arg_present(error_message)) then begin
+    status = 1L
+    if (self.quiet || arg_present(status) || arg_present(error_message)) then begin
       return
     endif else begin
       message, error_message
@@ -698,9 +1025,11 @@ pro mgdbmysql::setProperty, quiet=quiet, $
   if (n_elements(mysql_opt_protocol) gt 0) then begin
     status = mg_mysql_options(self.connection, 9UL, ulong(mysql_opt_protocol[0]))
   endif
+
   if (n_elements(mysql_secure_auth) gt 0) then begin
     status = mg_mysql_options(self.connection, 18UL, byte(mysql_secure_auth[0]))
   endif
+
   if (n_elements(database) gt 0) then begin
     self.database = database
     status = mg_mysql_select_db(self.connection, self.database)
@@ -721,7 +1050,8 @@ pro mgdbmysql::getProperty, quiet=quiet, $
                             server_version=server_version, $
                             last_command_info=last_command_info, $
                             database=database, $
-                            host_name=host_name
+                            host_name=host_name, $
+                            connection=connection
   compile_opt strictarr
 
   quiet = self.quiet
@@ -735,6 +1065,7 @@ pro mgdbmysql::getProperty, quiet=quiet, $
   if (arg_present(last_command_info)) then last_command_info = mg_mysql_info(self.connection)
   database = self.database
   host_name = self.host
+  connection = self.connection
 end
 
 
@@ -761,20 +1092,25 @@ end
 ;   1 for success, 0 otherwise
 ;
 ; :Keywords:
+;   status : out, optional, type=long
+;     set to a named variable to retrieve the status code from the
+;     query, 0 for success
 ;   error_message : out, optional, type=string
 ;     MySQL error message
 ;   _extra : in, optional, type=keywords
 ;     keywords to `setProperty`
 ;-
-function mgdbmysql::init, error_message=error_message, _extra=e
+function mgdbmysql::init, status=status, error_message=error_message, _extra=e
   compile_opt strictarr
   on_error, 2
 
   self.connected = 0B
 
-  status = self->_init()
-  if (status ne 1) then begin
-    if (self.quiet || arg_present(error_message)) then begin
+  if (self->_init() ne 1) then begin
+    if (self.quiet || arg_present(status) || arg_present(error_message)) then begin
+      status = 1L
+      error_message = !error_state.msg
+
       return, 0
     endif else begin
       message, !error_state.msg
@@ -783,7 +1119,8 @@ function mgdbmysql::init, error_message=error_message, _extra=e
 
   if (self.connection eq 0) then begin
     error_message = self->last_error_message()
-    if (self.quiet || arg_present(error_message)) then begin
+    if (self.quiet || arg_present(status) || arg_present(error_message)) then begin
+      status = 1L
       return, 0
     endif else begin
       message, error_message
