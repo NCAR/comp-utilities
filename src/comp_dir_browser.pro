@@ -599,7 +599,7 @@ pro comp_dir_browser::load_datedir, datedir, reload=reload
     if (found) then begin
       files_info = info.files_info
       newest_ctime = comp_newest_file(datedir)
-      if (newest_ctime gt info.ctime) then begin
+      if (newest_ctime gt info.ctime || keyword_set(reload)) then begin
         self->_load_datedir, datedir, reload=reload, n_images=n_images, n_files=n_files
       endif else begin
         files = info.files
@@ -893,7 +893,7 @@ pro comp_dir_browser::handle_events, event
         self.show_level2 = event.select
         self->filter_table
       end
-    'cache_clear' : begin
+    'clear_cache': begin
         ok = dialog_message('Clear cache?', /information, $
                             /cancel, /default_cancel, $
                             dialog_parent=self.tlb)
@@ -905,6 +905,17 @@ pro comp_dir_browser::handle_events, event
           self->set_status, string(n_files, mg_human_size(orig_cache_size), $
                                    format='(%"Removed %d cache files (%s)")')
         endif
+      end
+    'clear_cache_for_datedir': begin
+        widget_control, self.current_datedir, get_uvalue=datedir
+
+        self.prefs_cache->clear, datedir
+        self->_update_cache_label
+        widget_control, self.current_datedir, set_tree_bitmap=0
+
+        self->set_status, string(n_files, mg_human_size(orig_cache_size), $
+                                 file_basename(datedir), $
+                                 format='(%"Removed %d cache file for %s")')
       end
     'display_files': begin
         if (~obj_valid(self.file_browser)) then begin
@@ -951,12 +962,23 @@ pro comp_dir_browser::handle_events, event
         self.current_datedir = event.id
         widget_control, event.id, get_uvalue=datedir
         self->load_datedir, datedir
-        image_bmp = read_bmp(filepath('image.bmp', subdir=['resource', 'bitmaps']), r, g, b)
+        image_bmp = read_bmp(filepath('image.bmp', $
+                                      subdir=['resource', 'bitmaps']), $
+                             r, g, b)
         bmp = bytarr(16, 16, 3)
         bmp[*, *, 0] = r[image_bmp]
         bmp[*, *, 1] = g[image_bmp]
         bmp[*, *, 2] = b[image_bmp]
         widget_control, event.id, set_tree_bitmap=bmp
+      end
+    'browser': begin
+        case strlowcase(tag_names(event, /structure_name)) of
+          'widget_context': begin
+              widget_displaycontextmenu, event.id, event.x, event.y, $
+                                         self.tree_context_base
+            end
+          else:
+        endcase
       end
     else:
   endcase
@@ -1031,7 +1053,7 @@ pro comp_dir_browser::create_widgets
                                              subdir=['resource', 'bitmaps']), $
                               /bitmap, $
                               tooltip='Clear cache', $
-                              uname='cache_clear')
+                              uname='clear_cache')
 
   ; content row
   content_base = widget_base(self.tlb, /row, xpad=0)
@@ -1042,7 +1064,13 @@ pro comp_dir_browser::create_widgets
   xpad = 0
 
   self.tree = widget_tree(content_base, uname='browser', $
-                          scr_xsize=tree_xsize, scr_ysize=scr_ysize)
+                          scr_xsize=tree_xsize, scr_ysize=scr_ysize, $
+                          /context_events)
+
+  self.tree_context_base = widget_base(self.tree, /context_menu)
+  clear_cache_button = widget_button(self.tree_context_base, $
+                                     value='Clear cache', $
+                                     uname='clear_cache_for_datedir')
 
   col_titles = ['Type', $
                 'Time', $
@@ -1197,6 +1225,7 @@ pro comp_dir_browser__define
              show_data: 0B, $
              show_backgrounds: 0B, $
              show_level2: 0B, $
+             tree_context_base: 0L, $
              context_base: 0L, $
              statusbar: 0L, $
              title: '', $
