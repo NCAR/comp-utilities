@@ -17,9 +17,9 @@ function comp_get_type, filename, header
 
   basename = file_basename(filename)
 
-  if (strmatch(basename, '*.polarization.*.fts*')) then begin
+  if (strmatch(basename, '*.polarization*.fts*')) then begin
     type = 'POLARIZATION'
-  endif else if (strmatch(basename, '*.dynamics.*.fts*')) then begin
+  endif else if (strmatch(basename, '*.dynamics*.fts*')) then begin
     type = 'DYNAMICS'
   endif else if (strmatch(basename, '*.intensity.fts*')) then begin
     type = 'INTENSITY'
