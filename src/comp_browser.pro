@@ -726,7 +726,7 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
   if (~array_equal(dims, [620, 620]) && ~flat) then return
 
   if (flat) then begin
-    fieldstop_color = '00ffff'x
+    fieldstop_color = 'ff0000'x
     occulter_color = '0000ff'x
   endif else begin
     fieldstop_color = 'ffffff'x
@@ -784,11 +784,11 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
     fy2 = dimensions[1] * (fradius2 / dims[1] * sin(t) + fycnter2)
 
     plots, dimensions[0] * [fxcnter1], dimensions[1] * [fycnter1], $
-           psym=1, /device, color=field_color
-    plots, fx1, fy1, /device, color=field_color
+           psym=1, /device, color=fieldstop_color
+    plots, fx1, fy1, /device, color=fieldstop_color
     plots, dimensions[0] * [fxcnter2], dimensions[1] * [fycnter2], $
-           psym=1, /device, color=field_color
-    plots, fx2, fy2, /device, color=field_color
+           psym=1, /device, color=fieldstop_color
+    plots, fx2, fy2, /device, color=fieldstop_color
   endif else begin
     frpix1 = (sxpar(header, 'FRPIX1') - 1.0) / dims[0]
     frpix2 = (sxpar(header, 'FRPIX2') - 1.0) / dims[1]
