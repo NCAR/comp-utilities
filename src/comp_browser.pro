@@ -725,8 +725,13 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
   oxcnter1 = (sxpar(header, 'OXCNTER1', count=flat) - 1.0) / dims[0]
   if (~array_equal(dims, [620, 620]) && ~flat) then return
 
-  fieldstop_color = 'ffffff'x
-  occulter_color = '00ffff'x
+  if (flat) then begin
+    fieldstop_color = '00ffff'x
+    occulter_color = '0000ff'x
+  endif else begin
+    fieldstop_color = 'ffffff'x
+    occulter_color = '00ffff'x
+  endelse
   t = findgen(361) * !dtor
 
   device, decomposed=1
@@ -811,7 +816,7 @@ end
 
 
 ;+
-; Determine if annotation is avalable for a given image.
+; Determine if annotation is available for a given image.
 ;
 ; :Params:
 ;   data : in, required, type=2D array
