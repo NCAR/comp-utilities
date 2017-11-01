@@ -811,6 +811,17 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
     plots, dimensions[0] * [crpix1], dimensions[1] * [crpix2], $
            psym=1, /device, color=occulter_color
     plots, cx, cy, /device, color=occulter_color
+
+    p_angle = sxpar(header, 'SOLAR_P0')
+    post_angle = sxpar(header, 'POSTPANG')
+    help, p_angle, post_angle
+    post_angle -= p_angle + 90.0
+    post_angle *= !dtor
+
+    pa_r = (cradius + fradius) / 2.0
+    pa_x = dimensions[0] * (pa_r / dims[0] * cos(post_angle) + crpix1)
+    pa_y = dimensions[1] * (pa_r / dims[1] * sin(post_angle) + crpix2)
+    plots, [pa_x], [pa_y], /device, color=occulter_color, psym=2
   endelse
 end
 
