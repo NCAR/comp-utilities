@@ -814,7 +814,6 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
 
     p_angle = sxpar(header, 'SOLAR_P0')
     post_angle = sxpar(header, 'POSTPANG')
-    help, p_angle, post_angle
     post_angle -= p_angle + 90.0
     post_angle *= !dtor
 

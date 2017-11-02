@@ -380,7 +380,7 @@ pro comp_db_browser::handle_events, event
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
     'create_query': begin
-        result = self->get_data(limit=1, fields=fields)
+        result = self->get_data(fields=fields)
         if (n_elements(result) gt 0L) then begin
           comp_db_query, fields=fields.name, callback=self
         endif
