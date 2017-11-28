@@ -269,6 +269,13 @@ pro comp_dir_browser::load_directory, dirs, filter=filter, directory_id=director
                            /test_directory, $
                            count=n_datedirs)
 
+    if (n_datedirs eq 0L) then begin
+      msg = string(_filter, file_expand_path(dir), $
+                   format='(%"No directories found with filter %s in %s")')
+      self->set_status, msg
+      continue
+    endif
+
     levels = lonarr(n_datedirs)
     n_files = lonarr(n_datedirs)
 
@@ -340,7 +347,6 @@ pro comp_dir_browser::load_directory, dirs, filter=filter, directory_id=director
   t1 = systime(/seconds)
 
   ;self->set_status, string(t1 - t0, format='(%"%0.1f seconds to load")')
-  self->set_status, 'Ready'
 end
 
 
