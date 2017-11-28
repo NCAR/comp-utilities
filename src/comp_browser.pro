@@ -31,10 +31,10 @@ end
 
 
 ;+
-; Determine whether the data is raw or level 1.
+; Determine whether the data is raw, level 1, or level 2.
 ;
 ; :Returns:
-;   0 (raw), 1 (level 1), or -1 (unknown)
+;   0 (raw), 1 (level 1), 2 (level 2), or -1 (unknown)
 ;
 ; :Params:
 ;   data : in, required, type=fltarr
@@ -78,7 +78,7 @@ function comp_browser::get_level, data, header, filename=filename
         end
       else: begin
           if (n_elements(filename) gt 0L) then begin
-            re = '.*\.(mean|median|sigma)\.fts'
+            re = '.*\.(mean|median|sigma).*\.fts'
             if (stregex(file_basename(filename), re, /boolean)) then return, 2
           endif
         end

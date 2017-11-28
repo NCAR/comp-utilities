@@ -23,13 +23,13 @@ function comp_get_type, filename, header
     type = 'DYNAMICS'
   endif else if (strmatch(basename, '*.intensity.fts*')) then begin
     type = 'INTENSITY'
-  endif else if (strmatch(basename, '*.mean.fts*')) then begin
-    type = 'MEAN'
-  endif else if (strmatch(basename, '*.median.fts*')) then begin
-    type = 'MEDIAN'
-  endif else if (strmatch(basename, '*.quick_invert.fts*')) then begin
+  endif else if (strmatch(basename, '*.quick_invert.*.fts*')) then begin
     type = 'QUICK_INVERT'
-  endif else if (strmatch(basename, '*.sigma.fts*')) then begin
+  endif else if (strmatch(basename, '*.mean.*.fts*')) then begin
+    type = 'MEAN'
+  endif else if (strmatch(basename, '*.median.*.fts*')) then begin
+    type = 'MEDIAN'
+  endif else if (strmatch(basename, '*.sigma.*.fts*')) then begin
     type = 'SIGMA'
   endif else begin
     cover = sxpar(header, 'COVER', count=count)
