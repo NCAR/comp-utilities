@@ -63,8 +63,24 @@ def main():
     parser.add_argument('-c', '--critical', help='CRITICAL filter level', action='store_true')
     args = parser.parse_args()
 
-    logfiles = [f if f.endswith('.log') else os.path.join(LOG_DIR, f + '.log')
-                  for f in args.logfiles]
+    date_re = '^\d{8}$'
+    date_prog = re.compile(date_re)
+
+    logfiles = []
+    for f in args.logfiles:
+        if date_prog.match(f):
+            path1 = os.path.join(LOG_DIR, f + '.log')
+            if os.path.isfile(path1):
+                logfiles.append(path1)
+            else:
+                path2 = os.path.join(LOG_DIR, f + '.comp.log')
+                if os.path.isfile(path2):
+                    logfiles.append(path2)
+                else:
+                    parser.error(f + ' does not exist')
+        else:
+            logfiles.append(f)
+
     follow = args.follow
     if follow and len(logfiles) > 1:
         print 'cannot follow multiple files'
