@@ -507,7 +507,7 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               endif else if (pol_state eq 'V') then begin
                 image = bytscl(_data, min=-0.1, max=0.1, top=top)
               endif else begin
-                image = bytscl((_data > 0.0)^0.5, min=0.0, max=5.0, top=top)
+                image = bytscl((_data > 0.0)^0.5, min=0.0, max=3.0, top=top)
               endelse            
             end
           '1079' : begin
@@ -516,17 +516,17 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               endif else if (pol_state eq 'V') then begin
                 image = bytscl(_data, min=-0.1, max=0.1, top=top)
               endif else begin
-                image = bytscl((_data > 0.0)^0.5, min=0.0, max=3.5, top=top)
+                image = bytscl((_data > 0.0)^0.5, min=0.0, max=1.5, top=top)
               endelse
             end
           '1083' : begin
               ; TODO: this needs to be update for Q/U/V
               if (pol_state eq 'Q' || pol_state eq 'U' || pol_state eq 'V') then begin
-                display_min = 1.0
-                display_max = 4.0
+                display_min = -4.0
+                display_max =  4.0
               endif else begin
-                display_min = 2.0
-                display_max = 10.0
+                display_min = 0.0
+                display_max = 8.0
               endelse
               power = 0.3
 
