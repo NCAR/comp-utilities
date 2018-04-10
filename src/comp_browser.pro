@@ -55,7 +55,8 @@ function comp_browser::get_level, data, header, filename=filename
   dims = size(data, /dimensions)
   if (array_equal(dims, [1024, 1024])) then begin
     basename = file_basename(filename)
-    if (basename eq 'flat.fts' || basename eq 'dark.fts') then return, 1
+    suffix_name = strmid(basename, 7, /reverse_offset)
+    if (suffix_name eq 'flat.fts' || suffix_name eq 'dark.fts') then return, 1
     return, 0
   endif
   if (array_equal(dims, [620, 620])) then begin
@@ -214,7 +215,7 @@ function comp_browser::extension_title, n_exts, ext_names, filename=filename
 
   case type of
     'DARK': begin
-        if (file_basename(filename) eq 'dark.fts') then begin   ; level 1
+        if (strmid(file_basename(filename), 7, /reverse_offset) eq 'dark.fts') then begin   ; level 1
           fits_open, filename, fcb
           for e = 1L, n_exts do begin
             if (ext_names[e] ne '') then begin
@@ -240,7 +241,7 @@ function comp_browser::extension_title, n_exts, ext_names, filename=filename
         endelse
       end
     'OPAL': begin
-        if (file_basename(filename) eq 'flat.fts') then begin   ; level 1
+        if (strmid(file_basename(filename), 7, /reverse_offset) eq 'flat.fts') then begin   ; level 1
           fits_open, filename, fcb
           fits_read, fcb, times, times_header, exten_no=n_exts - 2
           fits_read, fcb, exposures, exposures_header, exten_no=n_exts
@@ -474,7 +475,8 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
   ; display flats and darks as level 0 (since they are level 0, just collected
   ; into a single file)
   basename = file_basename(filename)
-  if (basename eq 'flat.fts' || basename eq 'dark.fts') then level = 0
+  suffix_name = strmid(basename, 7, /reverse_offset)
+  if (suffix_name eq 'flat.fts' || suffix_name eq 'dark.fts') then level = 0
 
   case level of
     0: begin
@@ -487,7 +489,7 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
 
         if (datatype_present && strtrim(datatype, 2) eq 'FLAT') then begin
           display_min = 0.0
-          display_max = normalize_present gt 0L ? normalize : 84.0
+          display_max = 84.0
         endif else begin
           display_min = 0.0
           display_max = 5000.0
@@ -722,12 +724,13 @@ pro comp_browser::annotate_image, data, header, filename=filename, dimensions=di
   dims = size(data, /dimensions)
 
   ; only annotating level 1 data (but including flats.fts)
-  oxcnter1 = (sxpar(header, 'OXCNTER1', count=flat) - 1.0) / dims[0]
+  flat = strmid(file_basename(filename), 7, /reverse_offset) eq 'flat.fts'
+
   if (~array_equal(dims, [620, 620]) && ~flat) then return
 
   if (flat) then begin
-    fieldstop_color = 'ff0000'x
-    occulter_color = '0000ff'x
+    fieldstop_color = '00ff00'x
+    occulter_color = '00ffff'x
   endif else begin
     fieldstop_color = 'ffffff'x
     occulter_color = '00ffff'x
