@@ -444,30 +444,51 @@ pro comp_db_browser::handle_events, event
             for s = 0L, n_elements(selected_fields) - 1L do begin
               case strlowcase(selected_fields[s]) of
                 'r108': begin
-                    map = fltarr(n_rows, 720)
+                    start_date = (*self.current_data)[start_row].date_obs
+                    end_date   = (*self.current_data)[end_row].date_obs
+                    n_days = mlso_dateobs2jd(end_date) - mlso_dateobs2jd(start_date) + 1
+                    n_days = ceil(n_days)
+                    map = fltarr(n_days, 720)
                     for r = start_row, end_row do begin
-                      map[r - start_row, *] = *(*self.current_data)[r].r108
+                      date = (*self.current_data)[r].date_obs
+                      date_index = mlso_dateobs2jd(date) - mlso_dateobs2jd(start_date)
+                      date_index = ceil(date_index)
+                      map[date_index, *] = *(*self.current_data)[r].r108
                     endfor
                     title = string('1.08 R_Sun', format='(%"Synoptic map for %s")')
-                    window, xsize=30 * n_rows + 50, ysize=400, /free, title=title
+                    window, xsize=30 * n_days + 50, ysize=400, /free, title=title
                     mg_image, map, /axes, yticklen=-0.01
                   end
                 'r13': begin
-                    map = fltarr(n_rows, 720)
+                    start_date = (*self.current_data)[start_row].date_obs
+                    end_date   = (*self.current_data)[end_row].date_obs
+                    n_days = mlso_dateobs2jd(end_date) - mlso_dateobs2jd(start_date) + 1
+                    n_days = ceil(n_days)
+                    map = fltarr(n_days, 720)
                     for r = start_row, end_row do begin
-                      map[r - start_row, *] = *(*self.current_data)[r].r13
+                      date = (*self.current_data)[r].date_obs
+                      date_index = mlso_dateobs2jd(date) - mlso_dateobs2jd(start_date)
+                      date_index = ceil(date_index)
+                      map[date_index, *] = *(*self.current_data)[r].r13
                     endfor
                     title = string('1.3 R_Sun', format='(%"Synoptic map for %s")')
-                    window, xsize=30 * n_rows + 50, ysize=400, /free, title=title
+                    window, xsize=30 * n_days + 50, ysize=400, /free, title=title
                     mg_image, map, /axes, yticklen=-0.01
                   end
                 'r18': begin
-                    map = fltarr(n_rows, 720)
+                    start_date = (*self.current_data)[start_row].date_obs
+                    end_date   = (*self.current_data)[end_row].date_obs
+                    n_days = mlso_dateobs2jd(end_date) - mlso_dateobs2jd(start_date) + 1
+                    n_days = ceil(n_days)
+                    map = fltarr(n_days, 720)
                     for r = start_row, end_row do begin
-                      map[r - start_row, *] = *(*self.current_data)[r].r18
+                      date = (*self.current_data)[r].date_obs
+                      date_index = mlso_dateobs2jd(date) - mlso_dateobs2jd(start_date)
+                      date_index = ceil(date_index)
+                      map[date_index, *] = *(*self.current_data)[r].r18
                     endfor
                     title = string('1.8 R_Sun', format='(%"Synoptic map for %s")')
-                    window, xsize=30 * n_rows + 50, ysize=400, /free, title=title
+                    window, xsize=30 * n_days + 50, ysize=400, /free, title=title
                     mg_image, map, /axes, yticklen=-0.01
                   end
                 else:
