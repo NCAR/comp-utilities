@@ -229,6 +229,7 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
     if (start_error || end_error) then return, !null
 
     case 1 of
+      self.current_table eq 'kcor_sw': where_clause = ''
       start_date ne '' && end_date ne '': begin
           where_clause = string(self.current_table, $
                                 start_date, end_date, $
@@ -361,6 +362,11 @@ pro comp_db_browser::handle_events, event
       end
     'sgs': begin
         self.current_type = 'sgs'
+        self.current_query = ''
+        self->_update_table, self->get_data(field_names=field_names), field_names
+      end
+    'sw': begin
+        self.current_type = 'sw'
         self.current_query = ''
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
@@ -551,6 +557,7 @@ pro comp_db_browser::create_widgets
   cal_button = widget_button(type_base, value='calibration', uname='cal')
   sci_button = widget_button(type_base, value='science', uname='sci')
   sgs_button = widget_button(type_base, value='SGS', uname='sgs')
+  sgs_button = widget_button(type_base, value='sw', uname='sw')
 
   spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
   dates_label = widget_label(toolbar, value='Dates:')

@@ -42,7 +42,7 @@ pro comp_spectral_profile, filename, pol_state, beam, x, y, error=error
     last_ind = uniq_ind[i] + 1
   endfor
 
-  window, /free, xsize=700, ysize=275, $
+  window, /free, xsize=700, ysize=275, retain=2, $
           title=string(file_basename(filename), format='(%"Spectral plot for %s")')
 
   device, get_decomposed=original_decomposed
