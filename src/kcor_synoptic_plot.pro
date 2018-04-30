@@ -18,7 +18,8 @@ pro kcor_synoptic_plot, dates, data, title=title
     map[date_index, *] = *data[r]
   endfor
 
-  window, xsize=(30 * n_days + 50) < 1200, ysize=400, /free, title=title
+  window, xsize=(30 * n_days + 50) < 1200, ysize=800, /free, title=title
+  device, get_decomposed=odec
   device, decomposed=0
   range = mg_range(map)
   if (range[0] lt 0.0) then begin
@@ -34,10 +35,25 @@ pro kcor_synoptic_plot, dates, data, title=title
     minv = 0.0
     maxv = range[1]
 
-    loadct, 0
+    loadct, 0, /silent
     background = 0
   endelse
-  mg_image, map, min_value=minv, max_value=maxv, $
+
+  north_up_map = shift(map, 0, -180)
+  east_limb = reverse(north_up_map[*, 0:359], 2)
+  west_limb = north_up_map[*, 360:*]
+
+  erase, background
+  mg_image, east_limb, min_value=minv, max_value=maxv, $
             /axes, yticklen=-0.01, $
-            background=background
+            background=background, $
+            title='East limb', $
+            position=[0.05, 0.6, 0.97, 0.95], /noerase
+  mg_image, west_limb, min_value=minv, max_value=maxv, $
+            /axes, yticklen=-0.01, $
+            background=background, $
+            title='West limb', $
+            position=[0.05, 0.1, 0.97, 0.45], /noerase
+
+  device, decomposed=odec
 end
