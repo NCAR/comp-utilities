@@ -43,17 +43,33 @@ pro kcor_synoptic_plot, dates, data, title=title
   east_limb = reverse(north_up_map[*, 0:359], 2)
   west_limb = north_up_map[*, 360:*]
 
+  !null = label_date(date_format='%M %D')
+  jd_dates = dblarr(n_dates)
+  for d = 0L, n_dates - 1L do begin
+    year    = strmid(dates[d], 0, 4)
+    month   = strmid(dates[d], 5, 2)
+    day     = strmid(dates[d], 8, 2)
+
+    hours   = strmid(dates[d], 11, 2)
+    minutes = strmid(dates[d], 14, 2)
+    seconds = strmid(dates[d], 17, 2)
+
+    jd_dates[d] = julday(month, day, year, hours, minutes, seconds)
+  endfor
+
   erase, background
-  mg_image, east_limb, min_value=minv, max_value=maxv, $
-            /axes, yticklen=-0.01, $
+  mg_image, east_limb, jd_dates, min_value=minv, max_value=maxv, $
+            /axes, yticklen=-0.005, xticklen=-0.01, $
             background=background, $
-            title='East limb', $
-            position=[0.05, 0.6, 0.97, 0.95], /noerase
-  mg_image, west_limb, min_value=minv, max_value=maxv, $
-            /axes, yticklen=-0.01, $
+            title='East limb', xtickformat='label_date', $
+            position=[0.05, 0.6, 0.97, 0.95], /noerase, $
+            yticks=2, ytickname=['S', 'E', 'N'], yminor=4
+  mg_image, west_limb, jd_dates, min_value=minv, max_value=maxv, $
+            /axes, yticklen=-0.005, xticklen=-0.01, $
             background=background, $
-            title='West limb', $
-            position=[0.05, 0.1, 0.97, 0.45], /noerase
+            title='West limb', xtickformat='label_date', $
+            position=[0.05, 0.1, 0.97, 0.45], /noerase, $
+            yticks=2, ytickname=['S', 'W', 'N'], yminor=4
 
   device, decomposed=odec
 end
