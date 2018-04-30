@@ -450,112 +450,22 @@ pro comp_db_browser::handle_events, event
             for s = 0L, n_elements(selected_fields) - 1L do begin
               case strlowcase(selected_fields[s]) of
                 'r108': begin
-                    start_date = (*self.current_data)[start_row].date_obs
-                    end_date   = (*self.current_data)[end_row].date_obs
-                    n_days = mlso_dateobs2jd(end_date) - mlso_dateobs2jd(start_date) + 1
-                    n_days = ceil(n_days)
-                    map = fltarr(n_days, 720) + 0.0001
-                    for r = start_row, end_row do begin
-                      date = (*self.current_data)[r].date_obs
-                      date_index = mlso_dateobs2jd(date) - mlso_dateobs2jd(start_date)
-                      date_index = ceil(date_index)
-                      map[date_index, *] = *(*self.current_data)[r].r108
-                    endfor
                     title = string('1.08 R_Sun', format='(%"Synoptic map for %s")')
-                    window, xsize=(30 * n_days + 50) < 1200, ysize=400, /free, title=title
-                    device, decomposed=0
-                    range = mg_range(map)
-                    if (range[0] lt 0.0) then begin
-                      minv = - (max(abs(range)))
-                      maxv = (max(abs(range)))
-
-                      r = [bytarr(128) + 255B, 2B * bindgen(128)]
-                      g = [bytarr(128), 2B * bindgen(128)]
-                      b = [bytarr(128), 2B * bindgen(128)]
-                      tvlct, r, g, b
-                      background = 128
-                    endif else begin
-                      minv = 0.0
-                      maxv = range[1]
-
-                      loadct, 0
-                      background = 0
-                    endelse
-                    mg_image, map, min_value=minv, max_value=maxv, $
-                              /axes, yticklen=-0.01, $
-                              background=background
+                    dates = (*self.current_data)[start_row:end_row].date_obs
+                    data = (*self.current_data)[start_row:end_row].r108
+                    kcor_synoptic_plot, dates, data, title=title
                   end
                 'r13': begin
-                    start_date = (*self.current_data)[start_row].date_obs
-                    end_date   = (*self.current_data)[end_row].date_obs
-                    n_days = mlso_dateobs2jd(end_date) - mlso_dateobs2jd(start_date) + 1
-                    n_days = ceil(n_days)
-                    map = fltarr(n_days, 720)
-                    for r = start_row, end_row do begin
-                      date = (*self.current_data)[r].date_obs
-                      date_index = mlso_dateobs2jd(date) - mlso_dateobs2jd(start_date)
-                      date_index = ceil(date_index)
-                      map[date_index, *] = *(*self.current_data)[r].r13
-                    endfor
                     title = string('1.3 R_Sun', format='(%"Synoptic map for %s")')
-                    window, xsize=(30 * n_days + 50) < 1200, ysize=400, /free, title=title
-                    device, decomposed=0
-                    range = mg_range(map)
-                    if (range[0] lt 0.0) then begin
-                      minv = - (max(abs(range)))
-                      maxv = (max(abs(range)))
-
-                      r = [bytarr(128) + 255B, 2B * bindgen(128)]
-                      g = [bytarr(128), 2B * bindgen(128)]
-                      b = [bytarr(128), 2B * bindgen(128)]
-                      tvlct, r, g, b
-                      background = 128
-                    endif else begin
-                      minv = 0.0
-                      maxv = range[1]
-
-                      loadct, 0
-                      background = 0
-                    endelse
-                    mg_image, map, min_value=minv, max_value=maxv, $
-                              /axes, yticklen=-0.01, $
-                              background=background
+                    dates = (*self.current_data)[start_row:end_row].date_obs
+                    data = (*self.current_data)[start_row:end_row].r13
+                    kcor_synoptic_plot, dates, data, title=title
                   end
                 'r18': begin
-                    start_date = (*self.current_data)[start_row].date_obs
-                    end_date   = (*self.current_data)[end_row].date_obs
-                    n_days = mlso_dateobs2jd(end_date) - mlso_dateobs2jd(start_date) + 1
-                    n_days = ceil(n_days)
-                    map = fltarr(n_days, 720)
-                    for r = start_row, end_row do begin
-                      date = (*self.current_data)[r].date_obs
-                      date_index = mlso_dateobs2jd(date) - mlso_dateobs2jd(start_date)
-                      date_index = ceil(date_index)
-                      map[date_index, *] = *(*self.current_data)[r].r18
-                    endfor
                     title = string('1.8 R_Sun', format='(%"Synoptic map for %s")')
-                    window, xsize=(30 * n_days + 50) < 1200, ysize=400, /free, title=title
-                    device, decomposed=0
-                    range = mg_range(map)
-                    if (range[0] lt 0.0) then begin
-                      minv = - (max(abs(range)))
-                      maxv = (max(abs(range)))
-
-                      r = [bytarr(128) + 255B, 2B * bindgen(128)]
-                      g = [bytarr(128), 2B * bindgen(128)]
-                      b = [bytarr(128), 2B * bindgen(128)]
-                      tvlct, r, g, b
-                      background = 128
-                    endif else begin
-                      minv = 0.0
-                      maxv = range[1]
-
-                      loadct, 0
-                      background = 0
-                    endelse
-                    mg_image, map, min_value=minv, max_value=maxv, $
-                              /axes, yticklen=-0.01, $
-                              background=background
+                    dates = (*self.current_data)[start_row:end_row].date_obs
+                    data = (*self.current_data)[start_row:end_row].r18
+                    kcor_synoptic_plot, dates, data, title=title
                   end
                 else:
               endcase
