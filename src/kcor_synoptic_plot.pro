@@ -43,7 +43,7 @@ pro kcor_synoptic_plot, dates, data, title=title
   east_limb = reverse(north_up_map[*, 0:359], 2)
   west_limb = north_up_map[*, 360:*]
 
-  !null = label_date(date_format='%M %D')
+  !null = label_date(date_format='%Z %M %D')
   jd_dates = dblarr(n_dates)
   for d = 0L, n_dates - 1L do begin
     year    = strmid(dates[d], 0, 4)
@@ -61,15 +61,17 @@ pro kcor_synoptic_plot, dates, data, title=title
   mg_image, east_limb, jd_dates, min_value=minv, max_value=maxv, $
             /axes, yticklen=-0.005, xticklen=-0.01, $
             background=background, $
-            title='East limb', xtickformat='label_date', $
-            position=[0.05, 0.6, 0.97, 0.95], /noerase, $
-            yticks=2, ytickname=['S', 'E', 'N'], yminor=4
+            title=string(title, format='(%"%s (East limb)")'), $
+            xtickformat='label_date', $
+            position=[0.05, 0.55, 0.97, 0.95], /noerase, $
+            yticks=4, ytickname=['S', 'SE', 'E', 'NE', 'N'], yminor=4
   mg_image, west_limb, jd_dates, min_value=minv, max_value=maxv, $
             /axes, yticklen=-0.005, xticklen=-0.01, $
             background=background, $
-            title='West limb', xtickformat='label_date', $
-            position=[0.05, 0.1, 0.97, 0.45], /noerase, $
-            yticks=2, ytickname=['S', 'W', 'N'], yminor=4
+            title=string(title, format='(%"%s (West limb)")'), $
+            xtickformat='label_date', $
+            position=[0.05, 0.05, 0.97, 0.45], /noerase, $
+            yticks=4, ytickname=['S', 'SW', 'W', 'NW', 'N'], yminor=4
 
   device, decomposed=odec
 end
