@@ -228,8 +228,14 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
                                     name='end', error=end_error)
     if (start_error || end_error) then return, !null
 
+    use_numfiles = ', mlso_numfiles'
+    orderby = 'mlso_numfiles.obs_day'
     case 1 of
-      self.current_table eq 'kcor_sw': where_clause = ''
+      self.current_table eq 'kcor_sw' || self.current_table eq 'kcor_hw': begin
+        where_clause = ''
+        orderby = 'date'
+        use_numfiles = ''
+      end
       start_date ne '' && end_date ne '': begin
           where_clause = string(self.current_table, $
                                 start_date, end_date, $
@@ -260,10 +266,11 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
 
   field_names = field_result.field
 
-  query = string(self.current_table, self.current_table, where_clause, $
+  query = string(self.current_table, self.current_table, use_numfiles, where_clause, $
+                 orderby, $
                  limit_present ? ' limit' : '', $
                  limit_present ? (' ' + strtrim(_limit, 2)) : '', $
-                 format='(%"select %s.* from %s, mlso_numfiles %s order by mlso_numfiles.obs_day %s%s")')
+                 format='(%"select %s.* from %s%s %s order by %s %s%s")')
   self->set_status, string(strtrim(query, 2), format='(%"Querying with ''%s''")')
   result = self.db->query(query, $
                           sql_statement=sql_statement, error=error, fields=fields)
@@ -367,6 +374,11 @@ pro comp_db_browser::handle_events, event
       end
     'sw': begin
         self.current_type = 'sw'
+        self.current_query = ''
+        self->_update_table, self->get_data(field_names=field_names), field_names
+      end
+    'hw': begin
+        self.current_type = 'hw'
         self.current_query = ''
         self->_update_table, self->get_data(field_names=field_names), field_names
       end
@@ -527,7 +539,8 @@ pro comp_db_browser::create_widgets
   cal_button = widget_button(type_base, value='calibration', uname='cal')
   sci_button = widget_button(type_base, value='science', uname='sci')
   sgs_button = widget_button(type_base, value='SGS', uname='sgs')
-  sgs_button = widget_button(type_base, value='sw', uname='sw')
+  sw_button = widget_button(type_base, value='sw', uname='sw')
+  hw_button = widget_button(type_base, value='hw', uname='hw')
 
   spacer = widget_base(toolbar, scr_xsize=space, xpad=0.0, ypad=0.0)
   dates_label = widget_label(toolbar, value='Dates:')
