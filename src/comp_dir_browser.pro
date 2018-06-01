@@ -573,7 +573,9 @@ pro comp_dir_browser::_load_datedir, datedir, reload=reload, $
   endelse
 
   (self.inventories)[datedir] = files_info
-  info = {files_info: files_info, files: files, ctime: systime(/seconds)}
+  info = {files_info: n_elements(files_info) eq 0 ? -1 : files_info, $
+          files: files, $
+          ctime: systime(/seconds)}
   self.prefs_cache->set, datedir, info
   self->_update_cache_label
 end
@@ -608,9 +610,16 @@ pro comp_dir_browser::load_datedir, datedir, reload=reload
       if (newest_ctime gt info.ctime || keyword_set(reload)) then begin
         self->_load_datedir, datedir, reload=reload, n_images=n_images, n_files=n_files
       endif else begin
-        files = info.files
-        n_images = total(long(files_info.n_images), /integer)
-        n_files = n_elements(files)
+        if (size(files_info, /type) ne 8) then begin
+          files = !null
+          n_files = 0L
+          n_images = 0L
+        endif else begin
+          files = info.files
+          n_images = total(long(files_info.n_images), /integer)
+          n_files = n_elements(files)
+        endelse
+
         *(self.files) = files
         (self.files_cache)[datedir] = files
         (self.inventories)[datedir] = files_info
@@ -648,6 +657,8 @@ pro comp_dir_browser::_table_colors, files_info, name, tcolors, $
                                      n_cols=n_cols, color=color
   compile_opt strictarr
 
+  if (size(files_info, /type) ne 8) then return
+
   ind = where(files_info.type eq name, n_rows)
   if (n_rows gt 0) then begin
     _ind = rebin(reform(ind * n_cols, 1, n_rows), n_cols, n_rows) $
@@ -669,7 +680,7 @@ pro comp_dir_browser::filter_table
   widget_control, self.current_datedir, get_uvalue=datedir
 
   files_info = (self.inventories)[datedir]
-  n_files = n_elements(files_info)
+  n_files = size(files_info, /type) eq 8 ? n_elements(files_info) : 0L
 
   if (n_files gt 0L) then begin
     keep_type = bytarr(n_files)
@@ -722,7 +733,9 @@ pro comp_dir_browser::filter_table
     endelse
   endif
 
-  widget_control, self.table, set_value=files_info, ysize=n_files
+  widget_control, self.table, $
+                  set_value=size(files_info, /type) eq 8 ? files_info : [], $
+                  ysize=n_files
   widget_control, self.table, set_table_select=[-1, -1]
   if (n_files gt 0) then begin
     n_cols = n_tags(self->comp_dir_browser_row())
