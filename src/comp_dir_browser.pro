@@ -393,7 +393,7 @@ pro comp_dir_browser::_load_datedir, datedir, reload=reload, $
 
     prog = mg_progress(files, $
                        title=string(loading_verb, datedir, format='(%"%s %s")'), $
-                       label_widget=self.statusbar, /manual)
+                       label_widget=self.statusbar)
     for f = 0L, n_files - 1L do begin
       ; set time fields
       basename = file_basename(files[f])
@@ -561,7 +561,7 @@ pro comp_dir_browser::_load_datedir, datedir, reload=reload, $
       endif
       prog->advance
     endfor
-    prog->advance
+    prog->done
     obj_destroy, prog
 
     ind = mg_sort(datetime_key, type_key)
