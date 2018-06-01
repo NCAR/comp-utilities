@@ -10,12 +10,15 @@ pro kcor_synoptic_plot, dates, data, title=title
   n_days = mlso_dateobs2jd(end_date) - mlso_dateobs2jd(start_date) + 1
   n_days = ceil(n_days)
 
-  map = fltarr(n_days, 720) + 0.0001
+  epsilon = 0.0001
+  map = fltarr(n_days, 720) + epsilon
+  means = fltarr(n_days) + !values.f_nan
   for r = 0L, n_dates - 1L do begin
     date = dates[r]
     date_index = mlso_dateobs2jd(date) - mlso_dateobs2jd(start_date)
     date_index = ceil(date_index)
     map[date_index, *] = *data[r]
+    means[date_index] = mean(*data[r])
   endfor
 
   window, xsize=(30 * n_days + 50) < 1200, ysize=800, /free, title=title
@@ -72,6 +75,16 @@ pro kcor_synoptic_plot, dates, data, title=title
             xtickformat='label_date', $
             position=[0.05, 0.05, 0.97, 0.45], /noerase, $
             yticks=4, ytickname=['S', 'SW', 'W', 'NW', 'N'], yminor=4
+
+  window, xsize=(30 * n_days + 50) < 1200, ysize=300, /free, title=title
+  m = moment(means, /nan)
+  plot, jd_dates, means, $
+        xstyle=1, xtickformat='label_date'
+  oplot, jd_dates, fltarr(n_elements(jd_dates)) + m[0]
+  for s = 1, 2 do begin
+    oplot, jd_dates, fltarr(n_elements(jd_dates)) + m[0] + s * sqrt(m[1]), linestyle=3 - s
+    oplot, jd_dates, fltarr(n_elements(jd_dates)) + m[0] - s * sqrt(m[1]), linestyle=3 - s
+  endfor
 
   device, decomposed=odec
 end
