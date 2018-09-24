@@ -459,25 +459,37 @@ pro comp_db_browser::handle_events, event
               endif
             endfor
 
+            levels = self.db->query('select * from kcor_level', error=error, fields=fields)
+            level_indices = lonarr(max(levels.level_id) + 1L)
+            for lv = 0L, n_elements(levels) - 1L do begin
+              level_indices[(levels.level_id)[lv]] = lv
+            endfor
+
             for s = 0L, n_elements(selected_fields) - 1L do begin
               case strlowcase(selected_fields[s]) of
                 'r108': begin
                     title = string('1.08 R_Sun', format='(%"Synoptic map for %s")')
                     dates = (*self.current_data)[start_row:end_row].date_obs
                     data = (*self.current_data)[start_row:end_row].r108
-                    kcor_synoptic_plot, dates, data, title=title
+                    level_ids = (*self.current_data)[start_row:end_row].level
+                    level_names = levels[level_indices[level_ids]].level
+                    kcor_synoptic_plot, dates, data, level_names, title=title
                   end
                 'r13': begin
                     title = string('1.3 R_Sun', format='(%"Synoptic map for %s")')
                     dates = (*self.current_data)[start_row:end_row].date_obs
                     data = (*self.current_data)[start_row:end_row].r13
-                    kcor_synoptic_plot, dates, data, title=title
+                    level_ids = (*self.current_data)[start_row:end_row].level
+                    level_names = levels[level_indices[level_ids]].level
+                    kcor_synoptic_plot, dates, data, level_names, title=title
                   end
                 'r18': begin
                     title = string('1.8 R_Sun', format='(%"Synoptic map for %s")')
                     dates = (*self.current_data)[start_row:end_row].date_obs
                     data = (*self.current_data)[start_row:end_row].r18
-                    kcor_synoptic_plot, dates, data, title=title
+                    level_ids = (*self.current_data)[start_row:end_row].level
+                    level_names = levels[level_indices[level_ids]].level
+                    kcor_synoptic_plot, dates, data, level_names, title=title
                   end
                 else:
               endcase

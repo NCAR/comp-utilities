@@ -1,7 +1,11 @@
 ; docformat = 'rst'
 
-pro kcor_synoptic_plot, dates, data, title=title
+pro kcor_synoptic_plot, dates, data, level_names, title=title
   compile_opt strictarr
+
+  level_factor = fltarr(n_elements(level_names)) + 1.0
+  l15_indices = where(level_names eq 'L1.5', n_l15)
+  if (n_l15 gt 0L) then level_factor[l15_indices] = 1.0e6
 
   n_dates = n_elements(dates)
 
@@ -17,7 +21,7 @@ pro kcor_synoptic_plot, dates, data, title=title
     date = dates[r]
     date_index = mlso_dateobs2jd(date) - mlso_dateobs2jd(start_date)
     date_index = ceil(date_index)
-    map[date_index, *] = *data[r]
+    map[date_index, *] = *data[r] * level_factor[r]
     means[date_index] = mean(*data[r])
   endfor
 
@@ -78,6 +82,7 @@ pro kcor_synoptic_plot, dates, data, title=title
 
   window, xsize=(30 * n_days + 50) < 1200, ysize=300, /free, title=title
   m = moment(means, /nan)
+  device, decomposed=1
   plot, jd_dates, means, $
         xstyle=1, xtickformat='label_date'
   oplot, jd_dates, fltarr(n_elements(jd_dates)) + m[0]
@@ -85,6 +90,8 @@ pro kcor_synoptic_plot, dates, data, title=title
     oplot, jd_dates, fltarr(n_elements(jd_dates)) + m[0] + s * sqrt(m[1]), linestyle=3 - s
     oplot, jd_dates, fltarr(n_elements(jd_dates)) + m[0] - s * sqrt(m[1]), linestyle=3 - s
   endfor
+
+stop
 
   device, decomposed=odec
 end
