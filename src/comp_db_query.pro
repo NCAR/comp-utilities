@@ -357,7 +357,7 @@ pro comp_db_query::_import_results, results, tree=tree, top=top
   endif else begin
     uvalue = {type: results.type}
     parent = widget_tree(tree, $
-                         value=results.type eq 0 ? 'AND' : 'OR', $
+                         value=results.type eq 0 ? 'and' : 'or', $
                          uvalue=uvalue, $
                          /folder, /expanded, $
                          bitmap=self->_loadicon('mcr.bmp', /read))
@@ -437,10 +437,16 @@ pro comp_db_query::handle_events, event
       end
     'add': begin
         parent = widget_info(self.current_tree_node, /parent)
-        new_node = widget_tree(parent, value='AND', $
-                               /folder, /expanded, $
-                               uvalue={type:0L}, $
-                               bitmap=self->_loadicon('mcr.bmp', /read))
+        new_node = widget_tree(parent, $;value='and', $
+                               ;/folder, /expanded, $
+                               uvalue={type:2L}, $
+                               bitmap=self->_loadicon('new.bmp', /read))
+        self.current_tree_node = new_node
+        widget_control, new_node, /set_tree_select
+        self->_set_tree_buttons
+        self->_set_condition_title
+        widget_control, new_node, get_uvalue=uvalue
+        self->_set_type_controls, uvalue
       end
     'remove': begin
         widget_control, self.current_tree_node, /destroy
@@ -451,9 +457,15 @@ pro comp_db_query::handle_events, event
         endif else begin
           ctn = widget_info(self.tlb, find_by_uname='tree')
         endelse
-        child_node = widget_tree(ctn, value='AND', /folder, /expanded, $
-                                 uvalue={type:0L}, $
-                                 bitmap=self->_loadicon('mcr.bmp', /read))
+        child_node = widget_tree(ctn, $;value='and', /folder, /expanded, $
+                                 uvalue={type:2L}, $
+                                 bitmap=self->_loadicon('new.bmp', /read))
+        self.current_tree_node = child_node
+        widget_control, child_node, /set_tree_select
+        self->_set_tree_buttons
+        self->_set_condition_title
+        widget_control, child_node, get_uvalue=uvalue
+        self->_set_type_controls, uvalue
       end
     'tree':
     'and': begin
@@ -462,7 +474,7 @@ pro comp_db_query::handle_events, event
           uname = widget_info(self.current_tree_node, /uname)
           widget_control, self.current_tree_node, /destroy
           self.current_tree_node = widget_tree(parent, $
-                                               value='AND', $
+                                               value='and', $
                                                /folder, /expanded, $
                                                uname=uname, $
                                                uvalue={type:0L}, $
@@ -478,7 +490,7 @@ pro comp_db_query::handle_events, event
           uname = widget_info(self.current_tree_node, /uname)
           widget_control, self.current_tree_node, /destroy
           self.current_tree_node = widget_tree(parent, $
-                                               value='OR', $
+                                               value='or', $
                                                /folder, /expanded, $
                                                uname=uname, $
                                                uvalue={type:1L}, $
@@ -522,11 +534,19 @@ pro comp_db_query::handle_events, event
       end
     'save': begin
         filename = dialog_pickfile(/write, dialog_parent=self.tlb)
-        if (filename ne '') then begin
-          openw, lun, filename, /get_lun
-          printf, lun, self->export()
-          free_lun, lun
-        endif
+        case 1 of
+          file_test(filename, /directory): begin
+              ok = dialog_message('Directory selected', dialog_parent=self.tlb)
+            end
+          filename eq '': begin
+              ok = dialog_message('No file selected', dialog_parent=self.tlb)
+            end
+          else: begin
+              openw, lun, filename, /get_lun
+              printf, lun, self->export()
+              free_lun, lun
+            end
+        endcase
       end
     'open': begin
         filename = dialog_pickfile(/read, dialog_parent=self.tlb)
@@ -601,16 +621,16 @@ pro comp_db_query::create_widgets
                               value=self->_loadicon('open.bmp'))
 
   tree = widget_tree(top_column, scr_xsize=tree_xsize, scr_ysize=tree_ysize, uname='tree')
-  root = widget_tree(tree, value='AND', uname='root', /folder, /expanded, $
+  root = widget_tree(tree, value='and', uname='root', /folder, /expanded, $
                      uvalue={type:0L}, $
                      bitmap=self->_loadicon('mcr.bmp', /read))
 
   bottom_column = widget_base(content_base, xpad=0.0, ypad=0.0, /column, $
                               scr_xsize=tree_xsize, uname='bottom', /frame)
   type_base = widget_base(bottom_column, /row, xpad=0.0, ypad=0.0, /exclusive, /align_center)
-  and_button = widget_button(type_base, value='AND', uname='and')
-  or_button = widget_button(type_base, value='OR', uname='or')
-  condition_button = widget_button(type_base, value='Condition', uname='condition')
+  and_button = widget_button(type_base, value='and', uname='and')
+  or_button = widget_button(type_base, value='or', uname='or')
+  condition_button = widget_button(type_base, value='condition', uname='condition')
 
   condition_base = widget_base(bottom_column, xpad=0.0, ypad=0.0, /row, /align_center, $
                                map=0, uname='condition_base')

@@ -219,41 +219,45 @@ function comp_db_browser::get_data, limit=limit, fields=fields, field_names=fiel
     return, !null
   endif
 
-  if (self.current_query ne '') then begin
-    where_clause = 'where ' + self.current_query
-  endif else begin
-    start_date = self->_normalizedate(self.current_start_date, $
-                                      name='start', error=start_error)
-    end_date = self->_normalizedate(self.current_end_date, $
-                                    name='end', error=end_error)
-    if (start_error || end_error) then return, !null
+  start_date = self->_normalizedate(self.current_start_date, $
+                                    name='start', error=start_error)
+  end_date = self->_normalizedate(self.current_end_date, $
+                                  name='end', error=end_error)
+  if (start_error || end_error) then return, !null
 
+  case 1 of
+    self.current_table eq 'kcor_sw' || self.current_table eq 'kcor_hw': begin
+      where_clause = ''
+      orderby = 'date'
+      use_numfiles = ''
+    end
+    start_date ne '' && end_date ne '': begin
+      where_clause = string(self.current_table, $
+                            start_date, end_date, $
+                            format='(%"%s.obs_day=mlso_numfiles.day_id and mlso_numfiles.obs_day between ''%s'' and ''%s''")')
+    end
+    start_date ne '': begin
+      where_clause = string(self.current_table, $
+                            start_date, $
+                            format='(%"%s.obs_day=mlso_numfiles.day_id and mlso_numfiles.obs_day >= ''%s''")')
+    end
+    end_date ne '': begin
+      where_clause = string(self.current_table, $
+                            end_date, $
+                            format='(%"%s.obs_day=mlso_numfiles.day_id and mlso_numfiles.obs_day <= ''%s''")')
+    end
+    else: where_clause = string(self.current_table, $
+                                format='(%"%s.obs_day=mlso_numfiles.day_id")')
+  endcase
+
+  if (self.current_query ne '') then begin
+    where_clause = string(self.current_query, where_clause, format='(%"where %s and %s")')
+    use_numfiles = ', mlso_numfiles'
+    orderby = 'date_obs'
+  endif else begin
+    where_clause = string(where_clause, format='(%"where %s")')
     use_numfiles = ', mlso_numfiles'
     orderby = 'mlso_numfiles.obs_day'
-    case 1 of
-      self.current_table eq 'kcor_sw' || self.current_table eq 'kcor_hw': begin
-        where_clause = ''
-        orderby = 'date'
-        use_numfiles = ''
-      end
-      start_date ne '' && end_date ne '': begin
-          where_clause = string(self.current_table, $
-                                start_date, end_date, $
-                                format='(%"WHERE %s.obs_day=mlso_numfiles.day_id AND mlso_numfiles.obs_day BETWEEN ''%s'' AND ''%s''")')
-        end
-      start_date ne '': begin
-          where_clause = string(self.current_table, $
-                                start_date, $
-                                format='(%"WHERE %s.obs_day=mlso_numfiles.day_id AND mlso_numfiles.obs_day >= ''%s''")')
-        end
-      end_date ne '': begin
-          where_clause = string(self.current_table, $
-                                end_date, $
-                                format='(%"WHERE %s.obs_day=mlso_numfiles.day_id AND mlso_numfiles.obs_day <= ''%s''")')
-        end
-      else: where_clause = string(self.current_table, $
-                                  format='(%"WHERE %s.obs_day=mlso_numfiles.day_id")')
-    endcase
   endelse
 
   field_result = self.db->query('describe %s', self.current_table, $
