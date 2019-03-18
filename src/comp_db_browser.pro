@@ -404,7 +404,7 @@ pro comp_db_browser::handle_events, event
     'create_query': begin
         result = self->get_data(fields=fields)
         if (n_elements(result) gt 0L) then begin
-          comp_db_query, fields=fields.name, callback=self
+          comp_db_query, fields=fields.name, callback=self, group_leader=self.tlb
         endif
       end
     'clear_query': begin

@@ -583,7 +583,7 @@ pro comp_db_query::cleanup_widgets
 end
 
 
-pro comp_db_query::create_widgets
+pro comp_db_query::create_widgets, group_leader=group_leader
   compile_opt strictarr
 
   tree_xsize = 500.0
@@ -591,8 +591,15 @@ pro comp_db_query::create_widgets
   space = 5.0
   xpad = 2.0
 
+  if (n_elements(group_leader) gt 0L) then begin
+    geometry = widget_info(group_leader, /geometry)
+    xoffset = geometry.xoffset + 100.0
+    yoffset = geometry.yoffset + 100.0
+  endif
+
   self.tlb = widget_base(title=self.title, /column, /tlb_size_events, $
-                         uvalue=self, uname='tlb', xpad=xpad)
+                         uvalue=self, uname='tlb', xpad=xpad, $
+                         group_leader=group_leader, xoffset=xoffset, yoffset=yoffset)
   content_base = widget_base(self.tlb, xpad=0.0, ypad=0.0, space=space, /column)
 
   top_column = widget_base(content_base, xpad=0.0, ypad=0.0, /column)
@@ -678,7 +685,9 @@ pro comp_db_query::cleanup
 end
 
 
-function comp_db_query::init, fields=fields, callback=callback
+function comp_db_query::init, fields=fields, $
+                              callback=callback, $
+                              group_leader=group_leader
   compile_opt strictarr
 
   self.title = 'Database query creator'
@@ -686,7 +695,7 @@ function comp_db_query::init, fields=fields, callback=callback
   self.fields = ptr_new(fields)
   self.callback = callback
 
-  self->create_widgets
+  self->create_widgets, group_leader=group_leader
   self->realize_widgets
   self->start_xmanager
 
@@ -710,10 +719,13 @@ pro comp_db_query__define
 end
 
 
-pro comp_db_query, fields=fields, callback=callback
+pro comp_db_query, fields=fields, callback=callback, group_leader=group_leader
   compile_opt strictarr
 
-  query_creator = obj_new('comp_db_query', fields=fields, callback=callback)
+  query_creator = obj_new('comp_db_query', $
+                          fields=fields, $
+                          callback=callback, $
+                          group_leader=group_leader)
 end
 
 
