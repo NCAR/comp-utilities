@@ -43,7 +43,6 @@ find_package(IDLdoc)
 include_directories(${IDL_INCLUDE_DIR})
 
 add_subdirectory(lib)
-add_subdirectory(scripts)
 add_subdirectory(src)
 add_subdirectory(ssw)
 
