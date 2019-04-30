@@ -3,6 +3,11 @@
 This library contains routines for analyzing and visualizing various aspects of CoMP data.
 
 
+## Installation
+
+To install, add the `src`, `lib`, and `ssw` directories to your IDL path.
+
+
 ## COMP_BROWSER
 
 To examine a raw, L1, or L2 FITS data file, use `COMP_BROWSER`:
@@ -19,6 +24,12 @@ The primary and extension headers can also be displayed for any FITS file. Below
 ![L1 header](src/l1-header.png "L1 header")
 
 Use control-G and control-P to cycle forward and backward through the occurrences of the search text.
+
+`COMP_BROWSER` can also display all level 2 data in the same manner that GIFs are made in the standard processing pipeline. For example, a doppler extension from a quick invert file can be displayed:
+
+    IDL> comp_browser, '20170930.comp.1074.quick_invert.mean.synoptic.fts.gz'
+    
+![L2 data](src/l2-quickinvert-doppler.png "L2 data")
 
 Raw data files can also be browsed in the same manner:
 
