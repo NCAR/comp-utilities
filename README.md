@@ -5,7 +5,7 @@ This library contains routines for analyzing and visualizing various aspects of 
 
 ## Installation
 
-To install, add the `src`, `lib`, and `ssw` directories to your IDL path.
+To install, add the `src`, `lib`, and `ssw` directories of this repository to your IDL `!path`. This can be done using the `IDL_PATH` environment variable or setting the `IDL_PATH` preference using the `PREF_SET` routine. See the IDL documentation for more information about setting your IDL path.
 
 
 ## COMP_BROWSER
@@ -14,16 +14,28 @@ To examine a raw, L1, or L2 FITS data file, use `COMP_BROWSER`:
 
     IDL> comp_browser, 'process.l2test/20150801/20150801.165927.comp.1074.iqu.11.fts'
 
-This presents a list of the extensions in the file. The data can be displayed using the standard visualization settings used in the pipeline.
-The Level 1 data is displayed as:
+This presents a list of the extensions in the file. The data can be displayed using the standard visualization settings used in the pipeline to produce images. The Level 1 data is displayed as:
 
 ![L1 data](src/l1-data.png "L1 data")
 
-The primary and extension headers can also be displayed for any FITS file. Below, the header is searched for text:
+The primary and extension headers can also be displayed for any FITS file. Below, the header is searched for text using the search box above the header:
 
 ![L1 header](src/l1-header.png "L1 header")
 
 Use control-G and control-P to cycle forward and backward through the occurrences of the search text.
+
+The toolbar at the top of the browser window has several useful features:
+
+  1. ![open](resource/bitmaps/open.bmp "open") Open another CoMP FITS file.
+  2. ![command line](resource/bitmaps/commandline.bmp "command line") Export the current displayed data to the IDL command line. If the current selection is display of image, then it will be exported to the variable "data". If it is a header, it will be exported as "header".
+  3. ![export](resource/bitmaps/export.bmp "open") Export the current image display as an image file. A dialog will pop up to select a output filename and location.
+  4. ![annotate](resource/bitmaps/ellipse.bmp "annotate") Overlay annotations on the image display.
+
+A couple of features are possible directly from the display.
+
+  1. Right-click on an image to display spectral plot and select "Plot spectral profile" to plot all the wavelengths for the current selection at the selected pixel, as well as the neighboring pixels.
+
+  2. Two images can be compared by selecting the base extension image to compare, then holding down the control key while selecting another extension. Now that two images are displayed, moving the mouse in the image display while holding the left mouse button down will give a base display of the first image and an inset of the second image.
 
 `COMP_BROWSER` can also display all level 2 data in the same manner that GIFs are made in the standard processing pipeline. For example, a doppler extension from a quick invert file can be displayed:
 
