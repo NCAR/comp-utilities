@@ -1,22 +1,15 @@
 # CoMP utilities
 
-This library contains several routines for analyzing and visualizing various aspects of CoMP data.
+This library contains routines for analyzing and visualizing various aspects of CoMP data.
 
 
 ## COMP_BROWSER
 
 To examine a raw, L1, or L2 FITS data file, use `COMP_BROWSER`:
 
-    IDL> comp_browser, 'raw.he/20150801/20150801.070011.FTS'
-
-This presents a list of the extensions in the file. The data can be displayed using the standard visualization settings used in the pipeline. For example, the raw data is displayed as:
-
-![Raw data](src/raw-data.png "Raw data")
-
-Level 1 data files can also be browsed in the same manner:
-
     IDL> comp_browser, 'process.l2test/20150801/20150801.165927.comp.1074.iqu.11.fts'
 
+This presents a list of the extensions in the file. The data can be displayed using the standard visualization settings used in the pipeline.
 The Level 1 data is displayed as:
 
 ![L1 data](src/l1-data.png "L1 data")
@@ -26,6 +19,14 @@ The primary and extension headers can also be displayed for any FITS file. Below
 ![L1 header](src/l1-header.png "L1 header")
 
 Use control-G and control-P to cycle forward and backward through the occurrences of the search text.
+
+Raw data files can also be browsed in the same manner:
+
+    IDL> comp_browser, 'raw.he/20150801/20150801.070011.FTS'
+
+The raw data is displayed as:
+
+![Raw data](src/raw-data.png "Raw data")
 
 
 ## COMP_DIR_BROWSER
