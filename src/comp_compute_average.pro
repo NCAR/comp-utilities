@@ -150,7 +150,6 @@ pro comp_compute_average, files, method, output_filename=output_filename, $
 
   p = mg_progress(indgen(n_waves * total(numof_stokes, /integer)), $
                   title='Averaging...', $
-                  /manual, $
                   label_widget=label_widget)
 
   for ist = 0L, n_stokes - 1L do begin
