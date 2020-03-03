@@ -64,6 +64,7 @@ function comp_browser::get_level, data, header, filename=filename
       'Intensity':
       'Enhanced Intensity':
       'Corrected LOS velocity':
+      'Uncorrected LOS velocity':
       'Line Width':
       'Integrated Stokes Q':
       'Integrated Stokes U':
@@ -74,7 +75,8 @@ function comp_browser::get_level, data, header, filename=filename
       'Linear Polarization':
       'Azimuth':
       'Radial Azimuth':
-      'Doppler Velocity': begin
+      'Doppler Velocity':
+      'Uncorrected Doppler Velocity': begin
           return, 2
         end
       else: begin
@@ -577,7 +579,8 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               image = _data
               break
             end
-          'Doppler Velocity': begin
+          'Doppler Velocity':
+          'Uncorrected Doppler Velocity': begin
               restore, filepath('my_doppler_ct.sav', root=mg_src_root())
               tvlct, r, g, b
 
@@ -591,6 +594,7 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               image = congrid(image, dims[0], dims[1])
               break
             end
+          'Uncorrected LOS velocity':
           'Corrected LOS velocity': begin
               restore, filepath('my_doppler_ct.sav', root=mg_src_root())
               tvlct, r, g, b
