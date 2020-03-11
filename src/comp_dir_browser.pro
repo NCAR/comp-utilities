@@ -432,7 +432,7 @@ pro comp_dir_browser::_load_datedir, datedir, reload=reload, $
             datetime_key[f] = strmid(basename, 0, 15)
           end
         'DATA': begin
-            files_info[f].type = 'data'
+            files_info[f].type = 'level 1'
             files_info[f].n_images = strtrim(n, 2)
             files_info[f].time = time
             datetime_key[f] = strmid(basename, 0, 15)
@@ -686,7 +686,7 @@ pro comp_dir_browser::filter_table
     keep_type = bytarr(n_files)
     if (self.show_darks) then keep_type or= files_info.type eq 'dark'
     if (self.show_flats) then keep_type or= files_info.type eq 'flat'
-    if (self.show_data) then keep_type or= files_info.type eq 'data'
+    if (self.show_data) then keep_type or= files_info.type eq 'level 1'
     if (self.show_backgrounds) then keep_type or= files_info.type eq 'background'
     if (self.show_level2) then begin
       keep_type or= files_info.type eq 'dynamics' $

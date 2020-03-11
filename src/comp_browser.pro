@@ -568,7 +568,7 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
               ;tvlct, 128B, 128B, 128B, 255L   ; bad values are grey
               tvlct, 0B, 0B, 0B, 255L   ; bad values are black
 
-              bad_ind = where(_data lt -90.0, n_bad_ind)
+              bad_ind = where(_data lt -90.0 or finite(_data) eq 0, n_bad_ind)
               image = bytscl(_data, min=-90.0, max=90.0, top=ncolors - 1)
               if (n_bad_ind gt 0L) then image[bad_ind] = 255B
 
@@ -643,7 +643,10 @@ pro comp_browser::display_image, data, header, filename=filename, dimensions=dim
           else: begin
               wave_type = self->get_wave_type(sxpar(header, 'WAVELENG'))
               loadct, 3, /silent
-              pol_state = strtrim(sxpar(header, 'POLSTATE'), 2)
+              pol_state = strtrim(sxpar(header, 'POLSTATE', count=n_polstate), 2)
+              if (n_polstate eq 0) then begin
+                pol_state = extname
+              endif
 
               sigma = stregex(file_basename(filename), '.*sigma.*', /boolean)
               if (sigma) then begin
