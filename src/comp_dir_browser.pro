@@ -1050,7 +1050,7 @@ pro comp_dir_browser::create_widgets
   filter_type_base = widget_base(toolbar, /nonexclusive, /row, xpad=10, ypad=0, frame=1)
   darks_button = widget_button(filter_type_base, value='Darks', uname='filter_darks')
   flats_button = widget_button(filter_type_base, value='Flats', uname='filter_flats')
-  data_button = widget_button(filter_type_base, value='Data', uname='filter_data')
+  data_button = widget_button(filter_type_base, value='Level 1', uname='filter_data')
   background_button = widget_button(filter_type_base, value='Backgrounds', uname='filter_backgrounds')
   l2_button = widget_button(filter_type_base, value='Level 2', uname='filter_level2')
 
